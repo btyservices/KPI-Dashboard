@@ -75,6 +75,30 @@
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState('');
             const [lastUpdated, setLastUpdated] = useState(null);
+            const [showUnlistedTasks, setShowUnlistedTasks] = useState(false);
+
+            const departments = {
+                'AR Department': ['AD', 'AB', 'BZ', 'GA', 'GG', 'HGB', 'IS', 'JA', 'JM', 'JS', 'KM', 'LG', 'MB', 'MGS', 'NB', 'PT', 'RM', 'SPA', 'MCB', 'MA', 'VR', 'RD', 'LSA'],
+                'Outbound Department': ['AMD', 'BM', 'CB', 'CC', 'CDC', 'DMA', 'ED', 'EMP', 'GC', 'GD', 'GP', 'HMA', 'IM', 'ISC', 'JC', 'JI', 'JL', 'JP', 'JRC', 'LL', 'LV', 'NZ', 'PB', 'RG', 'SMS', 'VL', 'WM'],
+                'Verification Department': ['CF', 'GZ', 'JCB', 'JTL', 'KR', 'MLC', 'RDS']
+            };
+
+            const allAllowedNames = [
+                ...departments['AR Department'],
+                ...departments['Outbound Department'],
+                ...departments['Verification Department']
+            ];
+
+            const getDepartment = (name) => {
+                for (const [dept, names] of Object.entries(departments)) {
+                    if (names.includes(name)) {
+                        console.log('Employee:', name, 'Department:', dept);
+                        return dept;
+                    }
+                }
+                console.log('Employee:', name, 'Department: Unknown');
+                return 'Unknown';
+            };
 
             const SHEET_ID = '1asg-4czF_ITFPxvBpyRcjMLjhjl6XGRk0_FLsrQ4D6g';
             const API_KEY = 'AIzaSyAeiFMlkhhDjEahdKksbS6HomSCbO9iQ50';
@@ -82,87 +106,78 @@
             const RANGE = 'A:I';
 
             const tasksList = [
-                { name: 'Aging- Closed Denied Claims', variations: ['Aging- Closed Denied Claims', 'Aging Closed Denied Claims'] },
-                { name: 'Aging- Closed Paid Claims', variations: ['Aging- Closed Paid Claims', 'Aging Closed Paid Claims'] },
-                { name: 'Aging- Resubmit Claims', variations: ['Aging- Resubmit Claims', 'Aging Resubmit Claims'] },
-                { name: 'Aging- Review Claims', variations: ['Aging- Review Claims', 'Aging Review Claims'] },
-                { name: 'Aging- Voided Claims', variations: ['Aging- Voided Claims', 'Aging Voided Claims'] },
-                { name: 'Allocation Correction Log', variations: ['Allocation Correction Log', 'Allocation Correction', 'Allocation Corrections'] },
-                { name: 'Appointment Chart Update', variations: ['Appointment Chart Update', 'Appt Chart Update'] },
-                { name: 'Batching Claims', variations: ['Batching Claims', 'Batching Claim'] },
-                { name: 'Batching Statement', variations: ['Batching Statement', 'Batching Statements', 'Batch Statements'] },
-                { name: 'Billing- Inbound Call', variations: ['Billing- Inbound Call', 'Billing-Inbound Call', 'Biiling-Inbound Call', 'Billing Inbound Call'] },
-                { name: 'Billing- Outbound Call', variations: ['Billing- Outbound Call', 'Billing Outbound Call'] },
-                { name: 'Call Listening', variations: ['Call Listening'] },
-                { name: 'Claims Attachments', variations: ['Claims Attachments', 'Claim Attachments', 'Claims Attachment', 'Claim Attachment', 'Claims Mngt', 'Claims Management', 'Claims Mngt- Attachments'] },
-                { name: 'Claims Not Sent', variations: ['Claims Not Sent', 'Claim Not Sent'] },
-                { name: 'Compliance', variations: ['Compliance', 'Compliances'] },
-                { name: 'Credentialing', variations: ['Credentialing', 'Credential'] },
-                { name: 'Daily KPI Reports', variations: ['Daily KPI Reports', 'Daily KPI', 'Daily KPI Report', 'KPI'] },
-                { name: 'Doctor Payroll', variations: ['Doctor Payroll', 'Doctor Payrolls', 'Dr Payroll', 'Finalizing/Sending Drs Payroll', 'Finalizing Doctor Payroll', 'Sending Doctor Payroll', 'Finalizing Drs Payroll'] },
-                { name: 'Email/Teams Checked', variations: ['Email/Teams Checked', 'Email', 'Emails', 'Email Checked'] },
-                { name: 'Entering EOBs', variations: ['Entering EOBs', 'Entering EOB', 'Enter EOBs', 'Enter EOB'] },
-                { name: 'Entering Kleer Payments', variations: ['Entering Kleer Payments', 'Entering Kleer Payment', 'Entering Kleer', 'Enter Kleer', 'Kleer Payment'] },
-                { name: 'Entering Payments', variations: ['Entering Payments', 'Entering Payment', 'Entering FA Payments', 'Entering FA Payment', 'Enter FA Payments', 'Enter FA Payment', 'Entering PbN Payments', 'Entering PbN Payment', 'Enter PbN Payments', 'Enter PbN Payment'] },
-                { name: 'FA Set-up', variations: ['FA Set-up', 'FA Setup', 'FA Set up', 'FA Set-up to CardPoint', 'FA Setup to CardPoint', 'FA Set up to CardPoint'] },
-                { name: 'Fax Data Cleaning', variations: ['Fax Data Cleaning'] },
-                { name: "Finalizing Pt's Ledger", variations: ["Finalizing Pt's Ledger", "Finalizing Pt Ledger", 'Fixing Pt Ledger', 'Fixing Patient Ledger', 'Finalizing Accounts', 'Finalizing Account'] },
-                { name: 'Gateway Closing- CC', variations: ['Gateway Closing- CC', 'Gateway Closing', 'Gateway Close', 'Gateway Closings'] },
-                { name: 'Importing Fee Schedule to OD', variations: ['Importing Fee Schedule to OD', 'Fee Schedule', 'Fee Schedules'] },
-                { name: 'Itemized Receipt', variations: ['Itemized Receipt', 'Itemized Receipts'] },
-                { name: 'Kleer Set-up', variations: ['Kleer Set-up', 'Kleer Setup', 'Kleer Set up'] },
-                { name: 'Korean Scheduled List', variations: ['Korean Scheduled List'] },
-                { name: 'Korean Translation', variations: ['Korean Translation', 'Korean', 'Korean Trans'] },
-                { name: 'Ledger Allocation', variations: ['Ledger Allocation'] },
-                { name: 'Medicaid Report', variations: ['Medicaid Report'] },
-                { name: 'Meeting', variations: ['Meeting', 'Meetings'] },
-                { name: 'Miscellaneous Tasks', variations: ['Miscellaneous Tasks', 'Miscellaneous Task', 'Misc Tasks'] },
-                { name: 'Outstanding Claims Report', variations: ['Outstanding Claims Report', 'Outstanding Claims', 'Outstanding Claim'] },
-                { name: 'Proccessing CC Payments', variations: ['Proccessing CC Payments', 'Processing CC Payments', 'Running CC Payments', 'Running VCC', 'Running CC', 'Running VCC & Entering EOB', 'Runnng CC- Patients', 'Running Credit Card', 'Running Credit Cards'] },
-                { name: 'Procedure Not Billed (Sent/Batched)', variations: ['Procedure Not Billed (Sent/Batched)', 'Procedures Not Billed (Sent/Batched)', 'Procedure Not Billed', 'Procedures Not Billed'] },
-                { name: 'Procedure not Billed Report', variations: ['Procedure not Billed Report', 'Procedures not Billed Report'] },
-                { name: 'Receiving Pre-Determination (PA)', variations: ['Receiving Pre-Determination (PA)', 'Receiving Pre-Determination', 'Receving Pre-Determination', 'Receiving PA'] },
-                { name: 'Receiving Service Authorization (SA)', variations: ['Receiving Service Authorization (SA)', 'Receiving SA/Other Docs', 'Receiving SA', 'Receive SA'] },
-                { name: 'Reconciliation', variations: ['Reconciliation', 'Reconciliations', 'Reconcile'] },
-                { name: 'Records Release', variations: ['Records Release', 'Record Release'] },
-                { name: 'Rejected Claims Resubmission', variations: ['Rejected Claims Resubmission', 'Rejected Claim Resubmission'] },
-                { name: 'Retrieving EOBs/eChecks', variations: ['Retrieving EOBs/eChecks', 'Retrieving EOBs', 'Retrieving EOB', 'Retrieve EOBs', 'Retrieve EOB', 'Retrieving eChecks', 'Retrieving eCheck', 'Retrieve eChecks', 'Retrieve eCheck'] },
-                { name: 'Retrieving Fee Schedule', variations: ['Retrieving Fee Schedule', 'Retrieving Fee Schedules', 'Retrieve Fee Schedule'] },
-                { name: 'Sending Appeal/MJ', variations: ['Sending Appeal/MJ', 'Appeal/MJ', 'Appeal/MJ Sent', 'Appeal', 'Appeals', 'Medical Justification', 'Medicald Justification', 'Medical Justifications', 'MJ'] },
-                { name: 'Sending Medicaid Claims', variations: ['Sending Medicaid Claims', 'Sending Medicaid Claim'] },
-                { name: 'Sending Private Claims', variations: ['Sending Private Claims', 'Sending Private Claim', 'Sending Claims', 'Sending Claim'] },
-                { name: 'Sending Statements', variations: ['Sending Statements', 'Sending Statement', 'Send Statements', 'Send Statement'] },
-                { name: 'Sending to Collection Agency', variations: ['Sending to Collection Agency', 'Sending Accounts to Collection', 'Send to Collection', 'Sending to Collection', 'Collection', 'Collections'] },
-                { name: 'Sorting of Korean Accounts', variations: ['Sorting of Korean Accounts'] },
-                { name: 'Submitting Denied/Refund Letters', variations: ['Submitting Denied/Refund Letters', 'Submitting Denied/Refund Letter', 'Submit Denied Letter', 'Submit Refund Letter'] },
-                { name: 'Training', variations: ['Training'] },
-                { name: 'VM Set up', variations: ['VM Set up', 'VM Setup'] },
-                { name: 'Void/Adjustment Request', variations: ['Void/Adjustment Request', 'Void/Adjustment', 'Void Adjustment', 'Adjustment Request'] },
-                { name: 'WA Marketing Report', variations: ['WA Marketing Report'] },
-                { name: '20MIN Confirmation Call', variations: ['20MIN Confirmation Call', '20min Confirmation Call'] },
-                { name: '24HR Confirmation Call', variations: ['24HR Confirmation Call', '24hr Confirmation Call', 'Confirmation Call', 'Confimation Call', 'Confirmation Calls'] },
-                { name: 'GA', variations: ['GA'] },
-                { name: 'Inbound Appt', variations: ['Inbound Appt', 'Inbound Appointment'] },
-                { name: 'Inbound Call', variations: ['Inbound Call', 'Inbound Calls'] },
-                { name: 'Labslip', variations: ['Labslip', 'Labslips'] },
-                { name: 'Outbound Appt', variations: ['Outbound Appt', 'Outbound Appointment'] },
-                { name: 'Outbound Call', variations: ['Outbound Call', 'Outbound Calls'] },
-                { name: 'Patient Paperworks', variations: ['Patient Paperworks', 'Patient Paperwork'] },
-                { name: 'Travel PA', variations: ['Travel PA', 'Travel Pre-Authorization'] },
-                { name: 'Treatment Call', variations: ['Treatment Call', 'Treatment Calls'] },
-                { name: 'VA', variations: ['VA'] },
-                { name: 'Verification (M)', variations: ['Verification (M)'] },
-                { name: 'Verification (P)', variations: ['Verification (P)'] },
-                { name: 'Verification Tracker Update', variations: ['Verification Tracker Update', 'Verification Tracker'] },
-                { name: 'Gathering Dental Info', variations: ['Gathering Dental Info', 'Gather Dental Info'] },
-                { name: 'Gathering Insurance Info', variations: ['Gathering Insurance Info', 'Gather Insurance Info'] }
+                'Outstanding Claims',
+                'Billing Call',
+                'Claims Attachments',
+                'Claims Not Sent',
+                'Entering EOBs',
+                'Entering Kleer Payments',
+                'Entering Payments',
+                "Finalizing Pt's Ledger",
+                'Procedure Not Billed (Sent/Batched)',
+                'Receiving PA/SA',
+                'Rejected Claims Resubmission',
+                'Retrieving EOBs/eChecks',
+                'Sending Appeal/MJ',
+                'Sending Claims',
+                'Sending Statements',
+                'Sending to Collection Agency',
+                '20MIN Confirmation Call',
+                '24HR Confirmation Call',
+                'GA',
+                'Inbound Appt',
+                'Inbound Call',
+                'Labslip',
+                'Outbound Appt',
+                'Outbound Call',
+                'Patient Paperworks',
+                'Travel PA',
+                'Treatment Call',
+                'VA',
+                'Production',
+                'Verification',
+                'Collection',
+                'Email/Teams Checked',
+                'Miscellaneous Tasks'
             ];
 
+            // Mapping of original task names to standardized task names
+            const taskMapping = {
+                // Aging tasks map to Outstanding Claims
+                'aging- closed denied claims': 'Outstanding Claims',
+                'aging- closed paid claims': 'Outstanding Claims',
+                'aging- resubmit claims': 'Outstanding Claims',
+                'aging- review claims': 'Outstanding Claims',
+                'aging- voided claims': 'Outstanding Claims',
+                
+                // Billing calls
+                'billing- inbound call': 'Billing Call',
+                'billing- outbound call': 'Billing Call',
+                
+                // PA/SA
+                'receiving pre-determination (pa)': 'Receiving PA/SA',
+                'receiving service authorization (sa)': 'Receiving PA/SA',
+                
+                // Sending Claims
+                'sending medicaid claims': 'Sending Claims',
+                'sending private claims': 'Sending Claims',
+                
+                // Verification tasks
+                'verification (m)': 'Verification',
+                'verification (p)': 'Verification',
+                'verification tracker update': 'Verification',
+                'gathering dental info': 'Verification',
+                'gathering insurance info': 'Verification'
+            };
+
             const taskLookup = {};
-            tasksList.forEach(task => {
-                task.variations.forEach(variation => {
-                    taskLookup[variation.toLowerCase().trim()] = task.name;
-                });
+            tasksList.forEach(taskName => {
+                taskLookup[taskName.toLowerCase().trim()] = taskName;
+            });
+            
+            // Add mappings to lookup
+            Object.entries(taskMapping).forEach(([original, standard]) => {
+                taskLookup[original] = standard;
             });
 
             const fetchDataFromSheet = async () => {
@@ -184,8 +199,6 @@
                         throw new Error('No data found in the sheet');
                     }
 
-                    const allowedNames = ['AB', 'AD', 'BZ', 'GA', 'GG', 'HGB', 'IS', 'JA', 'JM', 'JS', 'KM', 'LG', 'LSA', 'MA', 'MB', 'MCB', 'MGS', 'NB', 'PT', 'RD', 'RM', 'SPA', 'VR'];
-                    
                     const parsedData = rows.slice(1)
                         .map(row => ({
                             date: row[0] || '',
@@ -200,8 +213,10 @@
                                 return false;
                             }
                             let cleanName = row.name.trim().replace(/^["']|["']$/g, '');
-                            return allowedNames.includes(cleanName);
+                            return allAllowedNames.includes(cleanName);
                         });
+
+                    console.log('Sample data rows:', parsedData.slice(0, 5));
 
                     setData(parsedData);
                     
@@ -210,7 +225,7 @@
                         name = name.replace(/^["']|["']$/g, '');
                         return name;
                     }))]
-                    .filter(n => allowedNames.includes(n))
+                    .filter(n => allAllowedNames.includes(n))
                     .sort();
                     
                     setUniqueNames(names);
@@ -276,7 +291,13 @@
                 }
 
                 const taskCounts = {};
+                const unlistedTasks = {};
                 let totalCollectionAmount = 0;
+                let totalProductionAmount = 0;
+                let totalTasks = 0;
+                
+                // Determine which department the selected employee belongs to
+                const userDepartment = getDepartment(selectedName);
                 
                 filtered.forEach(row => {
                     const taskName = row.task.trim();
@@ -284,26 +305,66 @@
                     
                     if (standardTaskName) {
                         taskCounts[standardTaskName] = (taskCounts[standardTaskName] || 0) + 1;
-                        
-                        if (standardTaskName === 'Sending to Collection Agency' && row.collectionAmount) {
-                            const cleanAmount = row.collectionAmount.toString().replace(/[$,\s]/g, '').trim();
-                            const amount = parseFloat(cleanAmount);
-                            if (!isNaN(amount) && amount > 0) {
-                                totalCollectionAmount += amount;
-                            }
+                        totalTasks++;
+                    } else {
+                        // Track unlisted tasks
+                        unlistedTasks[taskName] = (unlistedTasks[taskName] || 0) + 1;
+                        totalTasks++;
+                    }
+                    
+                    // Only count collection amounts for AR Department
+                    if (userDepartment === 'AR Department' && taskName.toLowerCase() === 'collection' && row.collectionAmount && row.collectionAmount.toString().trim()) {
+                        const cleanAmount = row.collectionAmount.toString().replace(/[$,\s]/g, '').trim();
+                        const amount = parseFloat(cleanAmount);
+                        if (!isNaN(amount) && amount > 0) {
+                            totalCollectionAmount += amount;
+                            console.log('Found collection:', amount, 'Task:', taskName, 'Amount string:', row.collectionAmount);
+                        }
+                    }
+                    
+                    // Only count production amounts for Outbound Department
+                    if (userDepartment === 'Outbound Department' && taskName.toLowerCase() === 'production' && row.amount && row.amount.toString().trim()) {
+                        const cleanAmount = row.amount.toString().replace(/[$,\s]/g, '').trim();
+                        const amount = parseFloat(cleanAmount);
+                        if (!isNaN(amount) && amount > 0) {
+                            totalProductionAmount += amount;
+                            console.log('Found production:', amount, 'Task:', taskName, 'Amount string:', row.amount);
                         }
                     }
                 });
 
                 const sortedTasks = Object.entries(taskCounts).sort((a, b) => a[0].localeCompare(b[0]));
+                const sortedUnlistedTasks = Object.entries(unlistedTasks).sort((a, b) => a[0].localeCompare(b[0]));
+                
+                const overallPerformance = tasksList.length > 0 ? ((Object.keys(taskCounts).length / tasksList.length) * 100).toFixed(0) : 0;
                 
                 return {
                     taskCounts: sortedTasks,
-                    totalCollectionAmount: totalCollectionAmount.toFixed(2)
+                    unlistedTasks: sortedUnlistedTasks,
+                    totalCollectionAmount: totalCollectionAmount.toFixed(2),
+                    totalProductionAmount: totalProductionAmount.toFixed(2),
+                    overallPerformance: parseInt(overallPerformance),
+                    totalTasks: totalTasks,
+                    department: userDepartment
                 };
             };
 
+            const getPerformanceColor = (percentage) => {
+                const hue = (percentage / 100) * 60;
+                return `hsl(${hue}, 85%, 50%)`;
+            };
+
             const performance = calculatePerformance();
+            
+            // Debug logging
+            if (performance && selectedName) {
+                console.log('=== DEBUG INFO ===');
+                console.log('Selected Name:', selectedName);
+                console.log('Department:', performance.department);
+                console.log('Should show Collections:', performance.department === 'AR Department');
+                console.log('Should show Production:', performance.department === 'Outbound Department');
+                console.log('==================');
+            }
 
             return (
                 <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
@@ -318,7 +379,6 @@
 
                         <div className="bg-slate-800 rounded-xl shadow-lg p-5 mb-6 border border-slate-700">
                             <div className="flex items-center justify-between gap-6 flex-wrap">
-                                {/* Left side - Filters */}
                                 <div className="flex items-center gap-4 flex-1 min-w-[600px]">
                                     <div className="flex items-center gap-2 text-white font-semibold">
                                         <Filter className="w-5 h-5" />
@@ -332,7 +392,7 @@
                                             onChange={(e) => setSelectedName(e.target.value)}
                                             className="flex-1 p-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         >
-                                            <option value="">Employee Name</option>
+                                            <option value="">Select Employee</option>
                                             {uniqueNames.map(name => (
                                                 <option key={name} value={name}>{name}</option>
                                             ))}
@@ -360,7 +420,6 @@
                                     </div>
                                 </div>
 
-                                {/* Right side - Data Status & Refresh */}
                                 <div className="flex items-center gap-4">
                                     <div className="flex items-center gap-3">
                                         <RefreshCw className="w-5 h-5 text-blue-400" />
@@ -395,23 +454,55 @@
 
                         {performance && selectedName && (
                             <div className="space-y-6">
-                                {performance.totalCollectionAmount > 0 && (
+                                <div className="grid md:grid-cols-3 gap-6">
                                     <div className="relative overflow-hidden bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 rounded-2xl shadow-2xl p-6 border-2 border-emerald-400/50">
-                                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32"></div>
-                                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/5 rounded-full -ml-24 -mb-24"></div>
-                                        <div className="relative flex justify-between items-center">
-                                            <div className="flex items-center gap-3">
-                                                <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl">
-                                                    <span className="text-3xl">💰</span>
-                                                </div>
-                                                <div>
-                                                    <p className="text-emerald-100 text-sm font-medium">Total Collections</p>
-                                                    <p className="text-white font-bold text-3xl tracking-tight">${parseFloat(performance.totalCollectionAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                                                </div>
-                                            </div>
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
+                                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/5 rounded-full -ml-12 -mb-12"></div>
+                                        <div className="relative">
+                                            <p className="text-emerald-100 text-sm font-medium mb-1">Total Balance Collected</p>
+                                            <p className="text-white font-bold text-4xl tracking-tight">
+                                                {performance.totalCollectionAmount > 0 
+                                                    ? `${parseFloat(performance.totalCollectionAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                                    : '$0.00'
+                                                }
+                                            </p>
                                         </div>
                                     </div>
-                                )}
+
+                                    <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-2xl shadow-2xl p-6 border-2 border-blue-400/50">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
+                                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/5 rounded-full -ml-12 -mb-12"></div>
+                                        <div className="relative">
+                                            <p className="text-blue-100 text-sm font-medium mb-1">Total Completed Production</p>
+                                            <p className="text-white font-bold text-4xl tracking-tight">
+                                                {performance.totalProductionAmount > 0 
+                                                    ? `${parseFloat(performance.totalProductionAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                                    : '$0.00'
+                                                }
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div 
+                                        className="relative overflow-hidden rounded-2xl shadow-2xl p-6 border-2 transition-all duration-500"
+                                        style={{
+                                            backgroundColor: getPerformanceColor(performance.overallPerformance),
+                                            borderColor: `${getPerformanceColor(performance.overallPerformance)}80`
+                                        }}
+                                    >
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+                                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/10 rounded-full -ml-12 -mb-12"></div>
+                                        <div className="relative">
+                                            <p className="text-white/90 text-sm font-medium mb-1">Overall Performance</p>
+                                            <p className="text-white font-bold text-4xl tracking-tight">
+                                                {performance.overallPerformance}%
+                                            </p>
+                                            <p className="text-white/80 text-xs mt-2">
+                                                {Object.keys(performance.taskCounts).length} of {tasksList.length} unique tasks completed
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
 
                                 <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl p-8 border border-slate-700/50">
                                     <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-700/50">
@@ -428,9 +519,22 @@
                                             </svg>
                                             Tasks Completed
                                         </h3>
-                                        <span className="text-sm font-semibold text-slate-400 bg-slate-700/50 px-4 py-2 rounded-full">
-                                            {performance.taskCounts.length} {performance.taskCounts.length === 1 ? 'Task' : 'Tasks'}
-                                        </span>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-sm font-semibold text-slate-400 bg-slate-700/50 px-4 py-2 rounded-full">
+                                                {performance.totalTasks} Total Entries
+                                            </span>
+                                            {performance.unlistedTasks.length > 0 && (
+                                                <button
+                                                    onClick={() => setShowUnlistedTasks(!showUnlistedTasks)}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-full transition-colors text-sm font-semibold"
+                                                >
+                                                    <span>Other Tasks</span>
+                                                    <span className="bg-blue-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                                                        {performance.unlistedTasks.length}
+                                                    </span>
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                     
                                     <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -446,6 +550,32 @@
                                             </div>
                                         ))}
                                     </div>
+
+                                    {showUnlistedTasks && performance.unlistedTasks.length > 0 && (
+                                        <div className="mt-6 pt-6 border-t border-slate-700/50">
+                                            <h4 className="text-lg font-bold text-yellow-400 mb-4 flex items-center gap-2">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <circle cx="12" cy="12" r="10"/>
+                                                    <line x1="12" y1="16" x2="12" y2="12"/>
+                                                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                                                </svg>
+                                                Other Tasks (Not in Standard List)
+                                            </h4>
+                                            <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                                {performance.unlistedTasks.map(([taskName, count]) => (
+                                                    <div key={taskName} className="group relative bg-gradient-to-br from-yellow-900/30 to-orange-900/30 backdrop-blur-sm rounded-xl p-3 hover:from-yellow-600/20 hover:to-orange-600/20 transition-all duration-300 border border-yellow-600/30 hover:border-yellow-500/50 hover:shadow-lg hover:shadow-yellow-500/10">
+                                                        <div className="flex flex-col gap-2">
+                                                            <span className="text-yellow-200 text-sm font-medium leading-tight line-clamp-2 group-hover:text-yellow-100 transition-colors">{taskName}</span>
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-xs text-yellow-400/70 group-hover:text-yellow-300">Count</span>
+                                                                <span className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold px-2.5 py-1 rounded-lg text-sm shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all">{count}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {performance.taskCounts.length === 0 && (
                                         <div className="text-center py-12 text-gray-400">
