@@ -169,39 +169,94 @@
             const RANGE_INS_PMT = 'A:G';
 
             const tasksList = [
-                'Outstanding Claims',
-                'Billing Call',
-                'Claims Attachments',
-                'Claims Not Sent',
-                'Entering EOBs',
-                'Entering Kleer Payments',
-                'Entering Payments',
-                "Finalizing Pt's Ledger",
-                'Procedure Not Billed (Sent/Batched)',
-                'Receiving PA/SA',
-                'Rejected Claims Resubmission',
-                'Retrieving EOBs/eChecks',
-                'Sending Appeal/MJ',
-                'Sending Claims',
-                'Sending Statements',
-                'Sending to Collection Agency',
-                '20MIN Confirmation Call',
-                '24HR Confirmation Call',
-                'GA',
-                'Inbound Appt',
-                'Inbound Call',
-                'Labslip',
-                'Outbound Appt',
-                'Outbound Call',
-                'Patient Paperworks',
-                'Travel PA',
-                'Treatment Call',
-                'VA',
-                'Production',
-                'Verification',
-                'Collection',
-                'Email/Teams Checked',
-                'Miscellaneous Tasks'
+                 'Aging- Closed Denied Claims',
+    'Aging- Closed Paid Claims',
+    'Aging- Resubmit Claims',
+    'Aging- Review Claims',
+    'Aging- Voided Claims',
+    'Allocation Correction Log',
+    'Appointment Chart Update',
+    'Bank Tracker',
+    'Batching Claims',
+    'Batching Statement',
+    'Billing- Inbound Call',
+    'Billing- Outbound Call',
+    'Call Listening',
+    'Claims Attachments',
+    'Claims Not Sent',
+    'Compliance',
+    'Credentialing',
+    'Daily KPI Reports',
+    'Doctor Payroll',
+    'Entering EOBs',
+    'Entering Kleer Payments',
+    'Entering Payments',
+    'FA Set-up',
+    'Fax Data Cleaning',
+    "Finalizing Pt's Ledger",
+    'Gateway Closing- CC',
+    'Importing Fee Schedule to OD',
+    'Itemized Receipt',
+    'Kleer Set-up',
+    'Korean Scheduled List',
+    'Korean Translation',
+    'Ledger Allocation',
+    'Medicaid Report',
+    'Outstanding Claims Report',
+    'Proccessing CC Payments',
+    'Procedure Not Billed (Sent/Batched)',
+    'Procedure not Billed Report',
+    'Receiving Pre-Determination (PA)',
+    'Receiving Service Authorization (SA)',
+    'Reconciliation',
+    'Records Release',
+    'Rejected Claims Resubmission',
+    'Retrieving EOBs/eChecks',
+    'Retrieving Fee Schedule',
+    'Sending Appeal/MJ',
+    'Sending Medicaid Claims',
+    'Sending Private Claims',
+    'Sending Pre-Determination (PA)',
+    'Sending Service Authorization (SA)',
+    'Sending Statements',
+    'Sending to Collection Agency',
+    'Sorting of Korean Accounts',
+    'Submitting Denied/Refund Letters',
+    'Void/Adjustment Request',
+    'WA Marketing Report',
+    '20MIN Confirmation Call',
+    '24HR Confirmation Call',
+    '48HR Confirmation Call',
+    'GA',
+    'Inbound Appt',
+    'Inbound Call',
+    'Inbound Text Appt',
+    'Inbound Text',
+    'Labslip',
+    'Outbound Appt',
+    'Outbound Call',
+    'Outbound Text Appt',
+    'Outbound Text',
+    'Patient Paperworks',
+    'Travel PA',
+    'Treatment Call',
+    'Scheduling VA Patients',
+    'Checking VA Portal Status',
+    'Processing ADA & RFS Forms',
+    'Calling VA Facilities/Patients',
+    'Submitting ADA/RFS/XRAYS/Implant Form',
+    'Handling VA-related Tasks',
+    'Verification (M)',
+    'Verification (P)',
+    'Verification Tracker Update',
+    'Email/Teams Checked',
+    'Meeting',
+    'Miscellaneous Tasks',
+    'Training',
+    'VM Set up',
+    'Gathering Dental Info',
+    'Gathering Insurance Info',
+    'Verification'
             ];
 
             const taskMapping = {
@@ -894,30 +949,29 @@ console.log('Overall:', overallPerformance.toFixed(1) + '%');
                                 </div>
 
                                 {showUnlistedTasks && performance.unlistedTasks.length > 0 && (
-                                    <div className="mt-6 pt-6 border-t border-slate-700/50">
-                                        <h4 className="text-lg font-bold text-yellow-400 mb-4 flex items-center gap-2">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                <circle cx="12" cy="12" r="10"/>
-                                                <line x1="12" y1="16" x2="12" y2="12"/>
-                                                <line x1="12" y1="8" x2="12.01" y2="8"/>
-                                            </svg>
-                                            Other Tasks (Not in Standard List)
-                                        </h4>
-                                        <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                            {performance.unlistedTasks.map(([taskName, count]) => (
-                                                <div key={taskName} className="group relative bg-gradient-to-br from-yellow-900/30 to-orange-900/30 backdrop-blur-sm rounded-xl p-3 hover:from-yellow-600/20 hover:to-orange-600/20 transition-all duration-300 border border-yellow-600/30 hover:border-yellow-500/50 hover:shadow-lg hover:shadow-yellow-500/10">
-                                                    <div className="flex flex-col gap-2">
-                                                        <span className="text-yellow-200 text-sm font-medium leading-tight line-clamp-2 group-hover:text-yellow-100 transition-colors">{taskName}</span>
-                                                        <div className="flex items-center justify-between">
-                                                            <span className="text-xs text-yellow-400/70 group-hover:text-yellow-300">Count</span>
-                                                            <span className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold px-2.5 py-1 rounded-lg text-sm shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all">{Math.round(count)}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+    <div className="mt-6 pt-6 border-t border-slate-700/50">
+        <h4 className="text-lg font-bold text-yellow-400 mb-4 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            Other Tasks (No Count in Sheet)
+        </h4>
+        <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {performance.unlistedTasks.map(([taskName, count]) => (
+                <div key={taskName} className="group relative bg-gradient-to-br from-yellow-900/30 to-orange-900/30 backdrop-blur-sm rounded-xl p-3 hover:from-yellow-600/20 hover:to-orange-600/20 transition-all duration-300 border border-yellow-600/30 hover:border-yellow-500/50 hover:shadow-lg hover:shadow-yellow-500/10">
+                    <div className="flex flex-col gap-2">
+                        <span className="text-yellow-200 text-sm font-medium leading-tight line-clamp-2 group-hover:text-yellow-100 transition-colors">{taskName}</span>
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs text-yellow-400/70 italic">No count data</span>
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    </div>
+)}
 
                                 {performance.taskCounts.length === 0 && (
                                     <div className="text-center py-12 text-gray-400">
@@ -938,5 +992,6 @@ console.log('Overall:', overallPerformance.toFixed(1) + '%');
 </body>
 </html>
 ```
+
 
 
