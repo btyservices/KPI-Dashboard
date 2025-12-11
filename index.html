@@ -154,6 +154,8 @@
                     return stateGoals[state].collection;
                 } else if (type === 'production' && dept === 'Outbound Department') {
                     return stateGoals[state].production;
+                    } else if (type === 'verification' && dept === 'Verification Department') {
+        return stateGoals[state].verification;
                 }
                 
                 return 0;
@@ -649,7 +651,7 @@ console.log('Overall:', overallPerformance.toFixed(1) + '%');
                 appointmentGoal: userDepartment === 'Outbound Department' ? 20 * numberOfDays : null,
                 callGoal: userDepartment === 'Outbound Department' ? 100 * numberOfDays : null,
                 collectionGoal: userDepartment === 'AR Department' ? getEmployeeGoal(selectedName, 'collection') * numberOfDays : null,
-                productionGoal: userDepartment === 'Outbound Department' ? getEmployeeGoal(selectedName, 'production') * numberOfDays : null
+                productionGoal: userDepartment === 'Outbound Department' ? getEmployeeGoal(selectedName, 'production') * numberOfDays : null,
                 verificationCount: taskCounts['Verification'] || 0,
     verificationGoal: userDepartment === 'Verification Department' ? getEmployeeGoal(selectedName, 'verification') * numberOfDays : null
             };
@@ -936,4 +938,5 @@ console.log('Overall:', overallPerformance.toFixed(1) + '%');
 </body>
 </html>
 ```
+
 
