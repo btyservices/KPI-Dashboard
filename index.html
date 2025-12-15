@@ -93,14 +93,17 @@
 const employeeNameMapping = {
     'ADIVINAGRACIA': 'AD',
     'ADIVINA': 'AD',
+    '**AD': 'AD',
     'ABARIOGA': 'AB',
+    '**AB': 'AB',
     'BZARATE': 'BZ',
+    '**BZ': 'BZ',
     'GAGBUYA': 'GA',
     'ISECONG': 'IS',
     'HBAGAPORO': 'HGB',
     'JARREY': 'JA',
     'RDELAPAZ': 'RD',
-    'KMAPAIT': 'KM',
+    'KMAPAIT': 'KPM',
     'GGUJILDE': 'GG',
     'JMORTIZ': 'JM',
     'LGUARNES': 'LG',
@@ -115,6 +118,26 @@ const employeeNameMapping = {
     'JMERCADO': 'RM',
     'VRUZOL': 'VR',
     'SADVINCULA': 'SPA'
+    '**GA': 'GA',
+    '**IS': 'IS',
+    '**HGB': 'HGB',
+    '**JA': 'JA',
+    '**RD': 'RD',
+    '**KPM': 'KPM',
+    '**GG': 'GG',
+    '**JM': 'JM',
+    '**LG': 'LG',
+    '**LSA': 'LSA',
+    '**JS': 'JS',
+    '**MA': 'MA',
+    '**MB': 'MB',
+    '**MCB': 'MCB',
+    '**MGS': 'MGS',
+    '**NB': 'NB',
+    '**PT': 'PT',
+    '**RM': 'RM',
+    '**VR': 'VR',
+    '**SPA': 'SPA'
 };
 
 // Normalize employee name to initials
@@ -155,7 +178,7 @@ const normalizeEmployeeName = (rawName) => {
                 // AR Department
                 'AD': 'Alaska', 'AB': 'Alaska', 'BDZ': 'Washington', 'BZ': 'California', 'GA': 'Washington', 
                 'GG': 'Washington', 'HGB': 'Washington', 'IS': 'Washington', 'JA': 'Washington', 
-                'JM': 'Alaska', 'JS': 'California', 'KM': 'Washington', 'LG': 'Alaska', 
+                'JM': 'Alaska', 'JS': 'California', 'KPM': 'Washington', 'LG': 'Alaska', 
                 'MB': 'Washington', 'MGS': 'Washington', 'NB': 'California', 'PT': 'Alaska', 
                 'RM': 'Alaska', 'SPA': 'Washington', 'MCB': 'Washington', 'MA': 'Washington', 
                 'VR': 'Alaska', 'RD': 'Washington', 'LSA': 'Washington',
@@ -1106,6 +1129,7 @@ return {
 </body>
 </html>
 ```
+
 
 
 
