@@ -722,7 +722,7 @@ const COLLECTION_SHEETS = [
                     }
                     
                     // Collection amounts for AR Department from Data sheet (Column F)
-                    if (userDepartment === 'AR Department' && taskLower === 'collection') {
+                    if (userDepartment === 'AR Department' && taskLower === 'total balance collected') {
                         if (row.collectionAmount && row.collectionAmount.toString().trim()) {
                             const cleanAmount = row.collectionAmount.toString().replace(/[$,\s]/g, '').trim();
                             const amount = parseFloat(cleanAmount);
@@ -733,7 +733,7 @@ const COLLECTION_SHEETS = [
                     }
                     
                     // Production amounts for Outbound Department
-                    if (userDepartment === 'Outbound Department' && taskLower === 'production' && row.amount && row.amount.toString().trim()) {
+                    if (userDepartment === 'Outbound Department' && taskLower === 'total completed production' && row.amount && row.amount.toString().trim()) {
                         const cleanAmount = row.amount.toString().replace(/[$,\s]/g, '').trim();
                         const amount = parseFloat(cleanAmount);
                         if (!isNaN(amount) && amount > 0) {
@@ -1129,6 +1129,7 @@ return {
 </body>
 </html>
 ```
+
 
 
 
