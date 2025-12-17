@@ -817,7 +817,7 @@
                     console.log('Working Days in range:', numberOfDays);
                     console.log('Appointments:', totalAppointments, '/ Goal:', appointmentGoal, '=', appointmentPerformance.toFixed(1) + '%');
                     console.log('Calls:', totalCalls, '/ Goal:', callGoal, '=', callPerformance.toFixed(1) + '%');
-                    console.log('Production:  + totalProductionAmount, '/ Goal:  + productionGoal, '=', productionPerformance.toFixed(1) + '%');
+                    console.log('Production: $' + totalProductionAmount, '/ Goal: $' + productionGoal, '=', productionPerformance.toFixed(1) + '%');
                     console.log('Overall:', overallPerformance.toFixed(1) + '%');
                     
                 } else if (userDepartment === 'AR Department') {
@@ -829,8 +829,8 @@
                     console.log('=== AR DEPARTMENT PERFORMANCE CALCULATION ===');
                     console.log('Employee:', selectedName, '| State:', userState);
                     console.log('Working Days in range:', numberOfDays);
-                    console.log('Total Collection (from Data sheet + Ins Pmt + Collection sheets):  + totalCollectionAmount.toFixed(2));
-                    console.log('Collection Goal:  + collectionGoal.toFixed(2));
+                    console.log('Total Collection (from Data sheet + Ins Pmt + Collection sheets): $' + totalCollectionAmount.toFixed(2));
+                    console.log('Collection Goal: $' + collectionGoal.toFixed(2));
                     console.log('Collection Performance:', collectionPerformance.toFixed(1) + '%');
                     console.log('Overall:', overallPerformance.toFixed(1) + '%');
                 } else if (userDepartment === 'Verification Department') {
@@ -1108,3 +1108,4 @@
                                         </div>
                                     </div>
                                 )}
+
