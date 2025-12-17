@@ -80,7 +80,7 @@
             const [showUnlistedTasks, setShowUnlistedTasks] = useState(false);
 
             const departments = {
-                'AR Department': ['AD', 'AB','BDZ', 'BZ', 'GA', 'GG', 'HGB', 'IS', 'JA', 'JM', 'JS', 'KM', 'LG', 'MB', 'MGS', 'NB', 'PT', 'RM', 'SPA', 'MCB', 'MA', 'VR', 'RD', 'LSA'],
+                'AR Department': ['AD', 'AB','BDZ', 'BZ', 'GA', 'GG', 'HGB', 'IS', 'JA', 'JM', 'JS', 'KPM', 'LG', 'MB', 'MGS', 'NB', 'PT', 'RM', 'SPA', 'MCB', 'MA', 'VR', 'RD', 'LSA'],
                 'Outbound Department': ['AMD', 'BM', 'CB', 'CC', 'CDC', 'DMA', 'ED', 'EMP', 'GC', 'GD', 'GP', 'HMA', 'IM', 'ISC', 'JC', 'JI', 'JL', 'JP', 'JRC', 'LL', 'LV', 'NZ', 'PB', 'RG', 'SMS', 'VL', 'WM'],
                 'Verification Department': ['CF', 'GZ', 'JCB', 'JTL', 'KR', 'MLC', 'RS']
             };
@@ -186,8 +186,13 @@ const normalizeEmployeeName = (rawName) => {
     
     // Try to map full name to initials
     const upperName = name.toUpperCase();
+    const lowerName = name.toLowerCase();
+    
     if (employeeNameMapping[upperName]) {
         return employeeNameMapping[upperName];
+    }
+    if (employeeNameMapping[lowerName]) {
+        return employeeNameMapping[lowerName];
     }
     
     return name;
@@ -1236,6 +1241,7 @@ return {
 </body>
 </html>
 ```
+
 
 
 
