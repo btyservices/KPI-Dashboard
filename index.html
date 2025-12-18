@@ -1149,6 +1149,294 @@ return {
                     {performance && selectedName && (
                         <div className="space-y-6">
                             <div className="grid md:grid-cols-3 gap-6">
+
+                                const calculatePerformanceByPeriod = () => {
+    if (!selectedName) return null;
+
+    let filtered = data.filter(row => {
+        let rowName = row.name.trim().replace(/^["']|["']$/g, '');
+        return rowName === selectedName;
+    });
+    
+    let filteredInsPmt = insPmtData.filter(row => {
+        let rowName = row.name.trim().replace(/^["']|["']$/g, '');
+        return rowName === selectedName;
+    });
+    
+    let filteredProduction = productionData.filter(row => {
+        let rowName = row.name.trim().replace(/^["']|["']$/g, '');
+        return rowName === selectedName;
+    });
+
+    const userDepartment = getDepartment(selectedName);
+    
+    // Apply date filters
+    if (startDate) {
+        const startDateObj = new Date(startDate);
+        startDateObj.setHours(0, 0, 0, 0);
+        filtered = filtered.filter(row => {
+            const rowDate = parseDate(row.date);
+            return rowDate && rowDate >= startDateObj;
+        });
+        filteredInsPmt = filteredInsPmt.filter(row => {
+            const rowDate = parseDate(row.date);
+            return rowDate && rowDate >= startDateObj;
+        });
+        filteredProduction = filteredProduction.filter(row => {
+            const rowDate = parseDate(row.date);
+            return rowDate && rowDate >= startDateObj;
+        });
+    }
+    
+    if (endDate) {
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999);
+        filtered = filtered.filter(row => {
+            const rowDate = parseDate(row.date);
+            return rowDate && rowDate <= endDateObj;
+        });
+        filteredInsPmt = filteredInsPmt.filter(row => {
+            const rowDate = parseDate(row.date);
+            return rowDate && rowDate <= endDateObj;
+        });
+        filteredProduction = filteredProduction.filter(row => {
+            const rowDate = parseDate(row.date);
+            return rowDate && rowDate <= endDateObj;
+        });
+    }
+    const PerformanceChart = ({ chartData, periodLabel }) => {
+    if (!chartData || chartData.length === 0) return null;
+    
+    const maxPerformance = Math.max(...chartData.map(d => d.performance), 100);
+    
+    return (
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl p-8 border border-slate-700/50 mb-6">
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-700/50">
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent flex items-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="url(#chart-gradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <defs>
+                            <linearGradient id="chart-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stopColor="#60A5FA" />
+                                <stop offset="100%" stopColor="#A78BFA" />
+                            </linearGradient>
+                        </defs>
+                        <line x1="12" y1="20" x2="12" y2="10"/>
+                        <line x1="18" y1="20" x2="18" y2="4"/>
+                        <line x1="6" y1="20" x2="6" y2="16"/>
+                    </svg>
+                    {periodLabel} Performance
+                </h3>
+                <span className="text-sm font-semibold text-slate-400 bg-slate-700/50 px-4 py-2 rounded-full">
+                    {chartData.length} {periodLabel === 'Daily' ? 'Days' : periodLabel === 'Weekly' ? 'Weeks' : 'Months'}
+                </span>
+            </div>
+            
+            <div className="relative" style={{ height: '300px' }}>
+                <div className="absolute inset-0 flex items-end justify-around gap-2 pb-8">
+                    {chartData.map((item, index) => {
+                        const height = (item.performance / maxPerformance) * 100;
+                        const color = item.performance >= 80 ? 'from-green-500 to-emerald-600' :
+                                     item.performance >= 60 ? 'from-blue-500 to-indigo-600' :
+                                     item.performance >= 40 ? 'from-yellow-500 to-orange-600' :
+                                     'from-red-500 to-rose-600';
+                        
+                        return (
+                            <div key={index} className="flex-1 flex flex-col items-center group max-w-[120px]">
+                                <div className="relative w-full">
+                                    {/* Tooltip */}
+                                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-xs rounded-lg p-3 whitespace-nowrap z-10 shadow-xl border border-slate-700">
+                                        <div className="font-bold mb-1">{item.period}</div>
+                                        <div>Performance: {item.performance}%</div>
+                                        <div>Working Days: {item.workingDays}</div>
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-900"></div>
+                                    </div>
+                                    
+                                    {/* Bar */}
+                                    <div 
+                                        className={`w-full bg-gradient-to-t ${color} rounded-t-lg transition-all duration-500 hover:scale-105 cursor-pointer shadow-lg relative`}
+                                        style={{ height: `${height * 2.5}px`, minHeight: '20px' }}
+                                    >
+                                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-white font-bold text-sm whitespace-nowrap">
+                                            {item.performance}%
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {/* Label */}
+                                <div className="text-xs text-gray-400 mt-2 text-center w-full overflow-hidden text-ellipsis">
+                                    {item.period}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+                
+                {/* Baseline */}
+                <div className="absolute bottom-8 left-0 right-0 border-t-2 border-slate-600"></div>
+            </div>
+        </div>
+    );
+};
+    // Determine grouping strategy
+    let groupBy = 'day';
+    let periodLabel = 'Daily';
+    
+    if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+        
+        // Check if it's a full month
+        const isFullMonth = start.getDate() === 1 && 
+                           end.getMonth() === start.getMonth() &&
+                           end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate();
+        
+        if (daysDiff > 60) {
+            groupBy = 'month';
+            periodLabel = 'Monthly';
+        } else if (isFullMonth || daysDiff > 20) {
+            groupBy = 'week';
+            periodLabel = 'Weekly';
+        } else {
+            groupBy = 'day';
+            periodLabel = 'Daily';
+        }
+    }
+
+    // Group data by period
+    const periodData = {};
+    
+    const getWeekLabel = (date) => {
+        const weekStart = new Date(date);
+        const weekEnd = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        weekEnd.setDate(weekStart.getDate() + 6);
+        return `${weekStart.getMonth() + 1}/${weekStart.getDate()} - ${weekEnd.getMonth() + 1}/${weekEnd.getDate()}`;
+    };
+    
+    const addToPeriod = (dateStr, collection, production, verification) => {
+        const d = parseDate(dateStr);
+        if (!d) return;
+        
+        let key;
+        let label;
+        
+        if (groupBy === 'day') {
+            key = d.toISOString().split('T')[0];
+            label = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+        } else if (groupBy === 'week') {
+            const weekStart = new Date(d);
+            weekStart.setDate(d.getDate() - d.getDay());
+            key = weekStart.toISOString().split('T')[0];
+            label = getWeekLabel(weekStart);
+        } else if (groupBy === 'month') {
+            key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            label = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+        }
+        
+        if (!periodData[key]) {
+            periodData[key] = { 
+                collection: 0, 
+                production: 0, 
+                verification: 0, 
+                workingDays: new Set(),
+                label: label
+            };
+        }
+        
+        periodData[key].collection += collection;
+        periodData[key].production += production;
+        periodData[key].verification += verification;
+        
+        // Track working days (Monday-Friday)
+        const dayOfWeek = d.getDay();
+        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+            periodData[key].workingDays.add(d.toISOString().split('T')[0]);
+        }
+    };
+    
+    // Process AR Department data
+    if (userDepartment === 'AR Department') {
+        filtered.forEach(row => {
+            const taskLower = row.task.trim().toLowerCase();
+            if (taskLower === 'total balance collected' && row.collectionAmount) {
+                const amount = parseFloat(row.collectionAmount.toString().replace(/[$,\s]/g, '').trim());
+                if (!isNaN(amount) && amount > 0) {
+                    addToPeriod(row.date, amount, 0, 0);
+                }
+            }
+        });
+        
+        filteredInsPmt.forEach(row => {
+            if (row.amount) {
+                const amount = parseFloat(row.amount.toString().replace(/[$,\s]/g, '').trim());
+                if (!isNaN(amount) && amount > 0) {
+                    addToPeriod(row.date, amount, 0, 0);
+                }
+            }
+        });
+    }
+    
+    // Process Outbound Department data
+    if (userDepartment === 'Outbound Department') {
+        filteredProduction.forEach(row => {
+            if (row.amount) {
+                const amount = parseFloat(row.amount.toString().replace(/[$,\s]/g, '').trim());
+                if (!isNaN(amount) && amount > 0) {
+                    addToPeriod(row.date, 0, amount, 0);
+                }
+            }
+        });
+    }
+    
+    // Process Verification Department data
+    if (userDepartment === 'Verification Department') {
+        filtered.forEach(row => {
+            const standardTaskName = findTaskName(row.task.trim());
+            if (standardTaskName === 'Verification' && row.amount) {
+                const amount = parseFloat(row.amount.toString().replace(/[$,\s]/g, '').trim());
+                if (!isNaN(amount) && amount > 0) {
+                    addToPeriod(row.date, 0, 0, amount);
+                }
+            }
+        });
+    }
+    
+    // Calculate performance for each period
+    const chartData = Object.entries(periodData)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([period, data]) => {
+            const workingDays = data.workingDays.size || 1;
+            let performance = 0;
+            
+            if (userDepartment === 'AR Department') {
+                const goal = getEmployeeGoal(selectedName, 'collection') * workingDays;
+                performance = goal > 0 ? Math.min(100, (data.collection / goal) * 100) : 0;
+            } else if (userDepartment === 'Outbound Department') {
+                const goal = getEmployeeGoal(selectedName, 'production') * workingDays;
+                performance = goal > 0 ? Math.min(100, (data.production / goal) * 100) : 0;
+            } else if (userDepartment === 'Verification Department') {
+                const goal = getEmployeeGoal(selectedName, 'verification') * workingDays;
+                performance = goal > 0 ? Math.min(100, (data.verification / goal) * 100) : 0;
+            }
+            
+            return {
+                period: data.label,
+                performance: Math.round(performance),
+                workingDays: workingDays,
+                collection: data.collection,
+                production: data.production,
+                verification: data.verification
+            };
+        });
+    
+    return {
+        chartData,
+        groupBy,
+        periodLabel
+    };
+};
                                 {/* Card 1 - AR shows Collection, Outbound shows Production, Verification shows Count */}
 {performance.department === 'AR Department' ? (
     <div className="relative overflow-hidden bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 rounded-2xl shadow-2xl p-6 border-2 border-emerald-400/50">
@@ -1219,7 +1507,7 @@ return {
         )}
     </div>
 </div>
-{/* Card 3 - Completed Appointments (Outbound only) */}
+                                {/* Card 3 - Completed Appointments (Outbound only) */}
                                 {performance.department === 'Outbound Department' && (
                                     <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-pink-600 to-rose-600 rounded-2xl shadow-2xl p-6 border-2 border-purple-400/50">
                                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
@@ -1229,7 +1517,6 @@ return {
                                             <p className="text-white font-bold text-4xl tracking-tight">
                                                 {performance.totalCompletedAppointments || 0}
                                             </p>
-                                            <p className="text-purple-100/80 text-xs mt-2">From Sheet 3 Column D</p>
                                         </div>
                                     </div>
                                 )}
@@ -1256,6 +1543,17 @@ return {
                                 </div>
                             </div>
 
+                             {/* Performance Chart */}
+                            {(() => {
+                                const chartDataResult = calculatePerformanceByPeriod();
+                                return chartDataResult ? (
+                                    <PerformanceChart 
+                                        chartData={chartDataResult.chartData} 
+                                        periodLabel={chartDataResult.periodLabel} 
+                                    />
+                                ) : null;
+                            })()}
+                
                             <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl p-8 border border-slate-700/50">
                                 <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-700/50">
                                     <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent flex items-center gap-3">
@@ -1347,6 +1645,7 @@ return {
 </body>
 </html>
 ```
+
 
 
 
