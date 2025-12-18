@@ -582,23 +582,29 @@ productionResults.forEach(({ sheetName, rows }) => {
 console.log('Sample Production sheet rows:', parsedProductionData.slice(0, 5));
 console.log('Total production records:', parsedProductionData.length);
 // Parse appointment data from all sheets (Column A=date, D=name)
+// Parse appointment data from all sheets (Column A=date, C=name, D=appointment count)
 const parsedAppointmentData = [];
 appointmentResults.forEach(({ sheetName, rows }) => {
     if (rows.length > 1) {
         rows.slice(1).forEach(row => {
             if (row.length >= 4) {
-                const rawName = row[3] || ''; // Column D
+                const rawName = row[2] || ''; // Column C (Assistant name)
                 const cleanName = normalizeEmployeeName(rawName);
+                const dateValue = row[0] || ''; // Column A (Date)
+                const appointmentCount = row[3] || ''; // Column D (Appointment count)
                 
-                const dateValue = row[0] || ''; // Column A
-                
-                if (cleanName && dateValue && allAllowedNames.includes(cleanName)) {
-                    parsedAppointmentData.push({
-                        date: dateValue,
-                        name: cleanName,
-                        office: sheetName,
-                        source: `Appointment-${sheetName}`
-                    });
+                if (cleanName && dateValue && appointmentCount && allAllowedNames.includes(cleanName)) {
+                    // Parse the appointment count
+                    const count = parseFloat(appointmentCount.toString().replace(/[^0-9.]/g, ''));
+                    if (!isNaN(count) && count > 0) {
+                        parsedAppointmentData.push({
+                            date: dateValue,
+                            name: cleanName,
+                            count: count,
+                            office: sheetName,
+                            source: `Appointment-${sheetName}`
+                        });
+                    }
                 }
             }
         });
@@ -906,6 +912,7 @@ if (userDepartment === 'Outbound Department') {
     });
 }
                 // Calculate completed appointments from Sheet 3 Column D (Outbound Department only)
+// Calculate completed appointments from Sheet 3 Column D (Outbound Department only)
 if (userDepartment === 'Outbound Department') {
     let filteredAppointments = appointmentData.filter(row => {
         let rowName = row.name.trim().replace(/^["']|["']$/g, '');
@@ -931,8 +938,11 @@ if (userDepartment === 'Outbound Department') {
         });
     }
     
-    // Count appointments (each row in Column D = 1 appointment)
-    totalCompletedAppointments = filteredAppointments.length;
+    // Sum up the appointment counts from Column D
+    totalCompletedAppointments = filteredAppointments.reduce((sum, row) => sum + (row.count || 0), 0);
+    
+    console.log('Filtered appointments:', filteredAppointments);
+    console.log('Total completed appointments:', totalCompletedAppointments);
 }
 
                 // Process Ins Pmt sheet for collection amounts (AR Department only)
@@ -1337,6 +1347,7 @@ return {
 </body>
 </html>
 ```
+
 
 
 
