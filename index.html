@@ -139,28 +139,41 @@
 
         // Helper Functions
         const normalizeEmployeeName = (rawName) => {
-              if (!rawName) return null;
-                let name = rawName.trim().replace(/^["']|["']$/g, '');
-                if (name.includes(' - ')) name = name.split(' - ')[0].trim();
+    if (!rawName) return null;
+    let name = rawName.trim().replace(/^["']|["']$/g, '');
     
-        // First check if already in correct format
-                if (allAllowedNames.includes(name)) return name;
+    // Remove numeric prefixes like "12.0 ADIVINA" -> "ADIVINA"
+    name = name.replace(/^\d+\.?\d*\s+/, '');
     
-        // Check mapping with upper and lower case
-            const upperName = name.toUpperCase();
-            const lowerName = name.toLowerCase();
-                if (employeeNameMapping[upperName]) return employeeNameMapping[upperName];
-                if (employeeNameMapping[lowerName]) return employeeNameMapping[lowerName];
+    // Handle " - " separator
+    if (name.includes(' - ')) name = name.split(' - ')[0].trim();
     
-        // NEW: Extract initials from lowercase usernames (e.g., "jsimyunn" -> "JS")
-        // Check if it matches pattern: first letter + another letter (like jsimyunn, nbolivar, bzarate)
-            if (name.length >= 2 && /^[a-z]+$/.test(name)) {
-        // Try first 2 letters as initials
-            const possibleInitials = name.substring(0, 2).toUpperCase();
-                if (allAllowedNames.includes(possibleInitials)) {
+    // Remove trailing " R" or " P" status indicators
+    name = name.replace(/\s+[RP]$/i, '');
+    
+    // First check if already in correct format (case-sensitive check for initials)
+    if (allAllowedNames.includes(name)) return name;
+    
+    // Convert to uppercase for case-insensitive matching
+    const upperName = name.toUpperCase();
+    
+    // Check if uppercase version is in allowed names
+    if (allAllowedNames.includes(upperName)) return upperName;
+    
+    // Check mapping (now case-insensitive)
+    if (employeeNameMapping[upperName]) return employeeNameMapping[upperName];
+    
+    // Try removing spaces and checking again (for "ADIVINA GRACI" -> "ADIVINAGRACI")
+    const noSpaces = upperName.replace(/\s+/g, '');
+    if (employeeNameMapping[noSpaces]) return employeeNameMapping[noSpaces];
+    if (allAllowedNames.includes(noSpaces)) return noSpaces;
+    
+    // Extract initials from lowercase usernames (like "jsimyunn" -> "JS")
+    if (name.length >= 2 && /^[a-z]+$/.test(name)) {
+        const possibleInitials = name.substring(0, 2).toUpperCase();
+        if (allAllowedNames.includes(possibleInitials)) {
             return possibleInitials;
         }
-        // Try first letter + first letter after first vowel
         const match = name.match(/^([a-z])[aeiou]*([a-z])/i);
         if (match) {
             const initials = (match[1] + match[2]).toUpperCase();
@@ -169,6 +182,7 @@
             }
         }
     }
+    
     return null;
 };
         const getDepartment = (name) => {
@@ -1324,6 +1338,7 @@
 </body>
 </html>
 '''
+
 
 
 
