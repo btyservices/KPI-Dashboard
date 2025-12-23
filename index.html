@@ -665,13 +665,45 @@
                 }
 
                 if (userDepartment === 'AR Department') {
+                    console.log('=== AR DEPARTMENT COLLECTION DEBUG ===');
+                    console.log('Selected Name:', selectedName);
+                    console.log('Date Range:', startDate, 'to', endDate);
+                    console.log('Filtered data rows:', filtered.length);
+                    console.log('Filtered InsPmt rows:', filteredInsPmt.length);
+    
+                    // From Data sheet (Total Balance Collected)
+                    let dataSheetTotal = 0;
+                    filtered.forEach(row => {
+                        const taskLower = row.task.trim().toLowerCase();
+                        if (taskLower === 'total balance collected') {
+                            if (row.collectionAmount && row.collectionAmount.toString().trim()) {
+                                const cleanAmount = row.collectionAmount.toString().replace(/[$,\s]/g, '').trim();
+                                const amount = parseFloat(cleanAmount);
+                                if (!isNaN(amount) && amount > 0) {
+                                    dataSheetTotal += amount;
+                                    console.log('✓ Data Sheet:', amount, 'Date:', row.date, 'Source:', row.source);
+                                }
+                            }
+                        }
+                    });
+                    console.log('📊 Total from Data Sheet:', dataSheetTotal);
+    
+                    // From Ins Pmt / Collection sheets
+                    let insPmtTotal = 0;
                     filteredInsPmt.forEach(row => {
                         if (row.amount && row.amount.toString().trim()) {
                             const cleanAmount = row.amount.toString().replace(/[$,\s]/g, '').trim();
                             const amount = parseFloat(cleanAmount);
-                            if (!isNaN(amount) && amount > 0) totalCollectionAmount += amount;
+                            if (!isNaN(amount) && amount > 0) {
+                                insPmtTotal += amount;
+                                totalCollectionAmount += amount;
+                                console.log('✓ Collection:', amount, 'Date:', row.date, 'Source:', row.source);
+                            }
                         }
                     });
+                    console.log('📊 Total from Ins Pmt/Collection Sheets:', insPmtTotal);
+                    console.log('💰 GRAND TOTAL COLLECTION:', totalCollectionAmount);
+                    console.log('=======================================');
                 }
 
                 // Calculate state totals
@@ -1338,6 +1370,7 @@
 </body>
 </html>
 '''
+
 
 
 
