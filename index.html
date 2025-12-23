@@ -218,16 +218,26 @@
                 dateOnly = dateOnly.split(' ')[0];
             }
 
-            // Parse M/D/YYYY or MM/DD/YYYY format
-            const parts = dateOnly.split('/');
-            if (parts.length === 3) {
-                const month = parseInt(parts[0], 10) - 1; // 0-indexed
-                const day = parseInt(parts[1], 10);
-                const year = parseInt(parts[2], 10);
-        
-                // Create date object at noon to avoid timezone issues
-                // This ensures the date stays consistent regardless of timezone
-                return new Date(year, month, day, 12, 0, 0, 0);
+            // Handle YYYY-MM-DD format (from date picker)
+            if (dateOnly.includes('-')) {
+                const parts = dateOnly.split('-');
+                if (parts.length === 3) {
+                    const year = parseInt(parts[0], 10);
+                    const month = parseInt(parts[1], 10) - 1; // 0-indexed
+                    const day = parseInt(parts[2], 10);
+                    return new Date(year, month, day, 12, 0, 0, 0);
+                }
+            }
+
+            // Handle M/D/YYYY or MM/DD/YYYY format (from spreadsheet data)
+            if (dateOnly.includes('/')) {
+                const parts = dateOnly.split('/');
+                if (parts.length === 3) {
+                    const month = parseInt(parts[0], 10) - 1; // 0-indexed
+                    const day = parseInt(parts[1], 10);
+                    const year = parseInt(parts[2], 10);
+                    return new Date(year, month, day, 12, 0, 0, 0);
+                }
             }
     
             return null;
@@ -1378,6 +1388,7 @@
 </body>
 </html>
 '''
+
 
 
 
