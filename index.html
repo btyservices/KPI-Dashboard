@@ -634,7 +634,40 @@
                         if (standardTaskName) {
                             taskCounts[standardTaskName] = (taskCounts[standardTaskName] || 0) + amountValue;
                             totalTasks += amountValue;
-                        } else {
+                            // Process appointment data from Sheet 3 Column D
+                    let filteredAppointments = appointmentData.filter(row => {
+                        let rowName = row.name.trim().replace(/^["']|["']$/g, '');
+                        return rowName === selectedName;
+                    });
+
+                    if (startDate) {
+                        const parts = startDate.split('-');
+                        const startDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
+                        filteredAppointments = filteredAppointments.filter(row => {
+                            const rowDate = parseDate(row.date);
+                            if (!rowDate) return false;
+                            const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
+                            return rowDateOnly >= startDateObj;
+                        });
+                    }
+
+                    if (endDate) {
+                        const parts = endDate.split('-');
+                        const endDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
+                        filteredAppointments = filteredAppointments.filter(row => {
+                            const rowDate = parseDate(row.date);
+                            if (!rowDate) return false;
+                            const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
+                            return rowDateOnly <= endDateObj;
+                        });
+                    }
+
+                    // Sum completed appointments from Sheet 3 Column D
+                    totalCompletedAppointments = filteredAppointments.reduce((sum, row) => sum + (row.count || 0), 0);
+                    
+                    console.log('Filtered Appointments:', filteredAppointments);
+                    console.log('Total Completed Appointments:', totalCompletedAppointments);
+                } else {
                             unlistedTasks[taskName] = (unlistedTasks[taskName] || 0) + amountValue;
                             totalTasks += amountValue;
                         }
@@ -642,10 +675,11 @@
                     
                     // Outbound Department: Track appointments and calls
                     if (userDepartment === 'Outbound Department') {
-                        if (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt') {
+                        if (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt' || 
+                            standardTaskName === 'Inbound Text Appt' || standardTaskName === 'Outbound Text Appt') {
                             totalAppointments += amountValue > 0 ? amountValue : 1;
                         }
-                        if (standardTaskName === 'Outbound Call') {
+                        if (standardTaskName === 'Outbound Call' || standardTaskName === 'Inbound Call') {
                             totalCalls += amountValue > 0 ? amountValue : 1;
                         }
                     }
@@ -1477,3 +1511,4 @@
     </script>
 </body>
 </html>
+
