@@ -43,11 +43,12 @@
             '**NB': 'NB', '**PT': 'PT', '**RM': 'RM', '**VR': 'VR', '**SPA': 'SPA',
             'CLIGASAN': 'JL', 'GCOLINARES': 'GC', 'CBONOSTRO': 'CB', 'DAULIDA': 'DMA',
             'EMPANGILINAN': 'EMP', 'JCUNANAN': 'JC', 'BMANALO': 'BM', 'PBENITEZ': 'PB',
-            'nzambrano': 'NZ', 'vlagan': 'VL', 'istacruz': 'ISC', 'llagan': 'LL',
-            'edoronio': 'ED', 'lvillares': 'LV', 'ssalvejo': 'SMS', 'ccapispisan': 'CDC',
-            'jcadavez': 'JRC', 'adaumar': 'AMD', 'halfonso': 'HMA', 'jogario': 'JP',
-            'imorgado': 'IM', 'gpayoran': 'GP', 'wmejares': 'WM', 'rguaves': 'RG',
-            'ccapoy': 'CC', 'jincenzo': 'JI', 'gdelacruz': 'GD'
+            'NZAMBRANO': 'NZ', 'VLAGAN': 'VL', 'ISTACRUZ': 'ISC', 'LLAGAN': 'LL',
+            'EDORONIO': 'ED', 'LVILLARES': 'LV', 'SSALVEJO': 'SMS', 'CCAPISPISAN': 'CDC',
+            'JCADAVEZ': 'JRC', 'ADAUMAR': 'AMD', 'HALFONSO': 'HMA', 'JOGARIO': 'JP',
+            'IMORGADO': 'IM', 'GPAYORAN': 'GP', 'WMEJARES': 'WM', 'RGUAVES': 'RG',
+            'CCAPOY': 'CC', 'JINCENZO': 'JI', 'GDELACRUZ': 'GD', 'JHUAGON': 'JI',
+            'MSECONG': 'IS', 'ABARIOGA': 'AB', 'JMORTIZ': 'RM'
         };
 
         const employeeStateAssignments = {
@@ -139,7 +140,18 @@
             'WA-TM', 'WA-UP', 'WA-DP', 'WA-AD', 'WA-WO-FD', 'WA-WO-BD', 'AK'
         ];
 
-        // Helper Functions
+        // Unified numeric value parser - handles all formats consistently
+        const parseNumericValue = (value) => {
+            if (value === null || value === undefined) return 0;
+            if (typeof value === 'number') return value;
+            const str = value.toString().trim();
+            if (str === '' || str === '-') return 0;
+            // Remove dollar signs, commas, and spaces
+            const cleaned = str.replace(/[$,\s]/g, '');
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) ? 0 : parsed;
+        };
+
         const normalizeEmployeeName = (rawName) => {
             if (!rawName) return null;
             let name = rawName.trim().replace(/^["']|["']$/g, '');
@@ -204,9 +216,7 @@
             if (type === 'collection' && dept === 'AR Department') return stateGoals[state].collection;
             else if (type === 'production' && dept === 'Outbound Department') return stateGoals[state].production;
             else if (type === 'verification' && dept === 'Verification Department') {
-        // Check if this employee has mixed verification goals
                 if (mixedVerificationEmployees[name]) {
-            // Return combined weighted goal
                     const config = mixedVerificationEmployees[name];
                     return (config.verificationM.goal * config.verificationM.weight) + 
                            (config.verificationP.goal * config.verificationP.weight);
@@ -223,35 +233,28 @@
 
         const parseDate = (dateStr) => {
             if (!dateStr) return null;
-
-            // Remove any time component - just get the date part
             let dateOnly = dateStr.toString().trim();
             if (dateOnly.includes(' ')) {
                 dateOnly = dateOnly.split(' ')[0];
             }
-
-            // Handle YYYY-MM-DD format (from date picker)
             if (dateOnly.includes('-')) {
                 const parts = dateOnly.split('-');
                 if (parts.length === 3) {
                     const year = parseInt(parts[0], 10);
-                    const month = parseInt(parts[1], 10) - 1; // 0-indexed
+                    const month = parseInt(parts[1], 10) - 1;
                     const day = parseInt(parts[2], 10);
                     return new Date(year, month, day, 12, 0, 0, 0);
                 }
             }
-
-            // Handle M/D/YYYY or MM/DD/YYYY format (from spreadsheet data)
             if (dateOnly.includes('/')) {
                 const parts = dateOnly.split('/');
                 if (parts.length === 3) {
-                    const month = parseInt(parts[0], 10) - 1; // 0-indexed
+                    const month = parseInt(parts[0], 10) - 1;
                     const day = parseInt(parts[1], 10);
                     const year = parseInt(parts[2], 10);
                     return new Date(year, month, day, 12, 0, 0, 0);
                 }
             }
-    
             return null;
         };
 
@@ -283,73 +286,7 @@
             if (percentage >= 40) return { bg: 'from-orange-500 to-yellow-400', text: 'text-orange-300', icon: 'bg-orange-600/20', border: 'border-orange-400' };
             return { bg: 'from-red-500 to-orange-400', text: 'text-red-300', icon: 'bg-red-600/20', border: 'border-red-400' };
         };
-       // Performance Chart Component
-        const PerformanceChart = ({ performanceData, dateRange }) => {
-            const chartRef = useRef(null);
-            const chartInstance = useRef(null);
 
-            useEffect(() => {
-                if (!chartRef.current || !performanceData || performanceData.length === 0) return;
-                if (chartInstance.current) chartInstance.current.destroy();
-
-                const ctx = chartRef.current.getContext('2d');
-                chartInstance.current = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: performanceData.map(d => d.label),
-                        datasets: [{
-                            label: 'Performance %',
-                            data: performanceData.map(d => d.value),
-                            borderColor: 'rgb(34, 211, 238)',
-                            backgroundColor: 'rgba(34, 211, 238, 0.1)',
-                            borderWidth: 3,
-                            fill: true,
-                            tension: 0.4,
-                            pointBackgroundColor: 'rgb(34, 211, 238)',
-                            pointBorderColor: '#fff',
-                            pointBorderWidth: 2,
-                            pointRadius: 5,
-                            pointHoverRadius: 7
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                                titleColor: '#fff',
-                                bodyColor: '#cbd5e1',
-                                borderColor: '#475569',
-                                borderWidth: 1,
-                                padding: 12,
-                                displayColors: false,
-                                callbacks: { label: (context) => `Performance: ${context.parsed.y.toFixed(1)}%` }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                max: 100,
-                                ticks: { color: '#94a3b8', callback: (value) => value + '%' },
-                                grid: { color: 'rgba(148, 163, 184, 0.1)' }
-                            },
-                            x: {
-                                ticks: { color: '#94a3b8' },
-                                grid: { color: 'rgba(148, 163, 184, 0.1)' }
-                            }
-                        }
-                    }
-                });
-
-                return () => { if (chartInstance.current) chartInstance.current.destroy(); };
-            }, [performanceData]);
-
-            return <div className="h-80"><canvas ref={chartRef}></canvas></div>;
-        };
-
-        // Main Component
         const PerformanceTracker = () => {
             const [data, setData] = useState([]);
             const [insPmtData, setInsPmtData] = useState([]);
@@ -493,8 +430,8 @@
                                     const dateValue = row[0] || '';
                                     const appointmentCount = row[3] || '';
                                     if (cleanName && dateValue && appointmentCount && allAllowedNames.includes(cleanName)) {
-                                        const count = parseFloat(appointmentCount.toString().replace(/[^0-9.]/g, ''));
-                                        if (!isNaN(count) && count > 0) {
+                                        const count = parseNumericValue(appointmentCount);
+                                        if (count > 0) {
                                             parsedAppointmentData.push({ date: dateValue, name: cleanName, count: count, office: sheetName, source: `Appointment-${sheetName}` });
                                         }
                                     }
@@ -526,7 +463,7 @@
             };
 
             useEffect(() => { fetchDataFromSheet(); }, []);
-            // CALCULATION LOGIC - Part 1
+
             const calculatePerformance = () => {
                 if (!selectedName) return null;
 
@@ -566,7 +503,7 @@
                     numberOfDays = Math.max(1, uniqueDates.size);
                 }
 
-                // Filter by date range - CORRECTED VERSION
+                // Filter by date range
                 if (startDate) {
                     const parts = startDate.split('-');
                     const startDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
@@ -613,44 +550,45 @@
                 const userDepartment = getDepartment(selectedName);
                 const userState = getEmployeeState(selectedName);
 
+                // Process main data sheet tasks
                 filtered.forEach(row => {
                     const taskName = row.task.trim();
                     const taskLower = taskName.toLowerCase();
                     const standardTaskName = findTaskName(taskName);
                     
-                    if (row.amount && row.amount.toString().trim()) {
-                        const amountValue = parseFloat(row.amount.toString().replace(/[$,\s]/g, '').trim());
-                        if (!isNaN(amountValue) && amountValue > 0) {
-                            if (standardTaskName) {
-                                taskCounts[standardTaskName] = (taskCounts[standardTaskName] || 0) + amountValue;
-                                totalTasks += amountValue;
-                            } else {
-                                unlistedTasks[taskName] = (unlistedTasks[taskName] || 0) + amountValue;
-                                totalTasks += amountValue;
-                            }
+                    // Use unified parser for all amounts
+                    const amountValue = parseNumericValue(row.amount);
+                    
+                    if (amountValue > 0) {
+                        if (standardTaskName) {
+                            taskCounts[standardTaskName] = (taskCounts[standardTaskName] || 0) + amountValue;
+                            totalTasks += amountValue;
+                        } else {
+                            unlistedTasks[taskName] = (unlistedTasks[taskName] || 0) + amountValue;
+                            totalTasks += amountValue;
                         }
                     }
                     
+                    // Outbound Department: Track appointments and calls
                     if (userDepartment === 'Outbound Department') {
                         if (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt') {
-                            const amountValue = parseFloat((row.amount || '1').toString().replace(/[$,\s]/g, '').trim());
-                            if (!isNaN(amountValue) && amountValue > 0) totalAppointments += amountValue;
+                            totalAppointments += amountValue > 0 ? amountValue : 1;
                         }
                         if (standardTaskName === 'Outbound Call') {
-                            const amountValue = parseFloat((row.amount || '1').toString().replace(/[$,\s]/g, '').trim());
-                            if (!isNaN(amountValue) && amountValue > 0) totalCalls += amountValue;
+                            totalCalls += amountValue > 0 ? amountValue : 1;
                         }
                     }
                     
+                    // AR Department: Track collection from collectionAmount column
                     if (userDepartment === 'AR Department' && taskLower === 'total balance collected') {
-                        if (row.collectionAmount && row.collectionAmount.toString().trim()) {
-                            const cleanAmount = row.collectionAmount.toString().replace(/[$,\s]/g, '').trim();
-                            const amount = parseFloat(cleanAmount);
-                            if (!isNaN(amount) && amount > 0) totalCollectionAmount += amount;
+                        const collectionValue = parseNumericValue(row.collectionAmount);
+                        if (collectionValue > 0) {
+                            totalCollectionAmount += collectionValue;
                         }
                     }
                 });
 
+                // Process production data for Outbound Department
                 if (userDepartment === 'Outbound Department') {
                     let filteredProduction = productionData.filter(row => {
                         let rowName = row.name.trim().replace(/^["']|["']$/g, '');
@@ -679,19 +617,15 @@
                         });
                     }
 
+                    // Sum production amounts using unified parser
                     filteredProduction.forEach(row => {
-    if (row.amount && row.amount.toString().trim()) {
-        const cleanAmount = row.amount.toString().replace(/[$,\s]/g, '').trim();
-        const amount = parseFloat(cleanAmount);
-        console.log(`Production row for ${selectedName}: amount=${row.amount}, cleaned=${cleanAmount}, parsed=${amount}`);
-        if (!isNaN(amount) && amount > 0) {
-            totalProductionAmount += amount;
-            console.log(`Added ${amount}, total now: ${totalProductionAmount}`);
-        }
-    }
-});
-console.log(`Final totalProductionAmount for ${selectedName}: ${totalProductionAmount}`);
+                        const amount = parseNumericValue(row.amount);
+                        if (amount > 0) {
+                            totalProductionAmount += amount;
+                        }
+                    });
 
+                    // Process appointment data
                     let filteredAppointments = appointmentData.filter(row => {
                         let rowName = row.name.trim().replace(/^["']|["']$/g, '');
                         return rowName === selectedName;
@@ -719,27 +653,21 @@ console.log(`Final totalProductionAmount for ${selectedName}: ${totalProductionA
                         });
                     }
 
-                    totalCompletedAppointments = filteredAppointments.reduce((sum, row) => {
-    console.log(`Appointment row for ${selectedName}: count=${row.count}, office=${row.office}, date=${row.date}`);
-    return sum + (row.count || 0);
-}, 0);
-console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalCompletedAppointments}`);
+                    // Sum completed appointments - count is already parsed
+                    totalCompletedAppointments = filteredAppointments.reduce((sum, row) => sum + (row.count || 0), 0);
                 }
 
                 // Add Ins Pmt / Collection sheet amounts to AR total
                 if (userDepartment === 'AR Department') {
                     filteredInsPmt.forEach(row => {
-                        if (row.amount && row.amount.toString().trim()) {
-                            const cleanAmount = row.amount.toString().replace(/[$,\s]/g, '').trim();
-                            const amount = parseFloat(cleanAmount);
-                            if (!isNaN(amount) && amount > 0) {
-                                totalCollectionAmount += amount;
-                            }
+                        const amount = parseNumericValue(row.amount);
+                        if (amount > 0) {
+                            totalCollectionAmount += amount;
                         }
                     });
                 }
 
-                // Calculate state totals
+                // Calculate state totals for percentage calculations
                 let stateCollectionTotal = 0, stateProductionTotal = 0, stateAppointmentTotal = 0, stateVerificationTotal = 0;
                 const stateTaskTotals = {};
                 const employeesInState = allAllowedNames.filter(name => getEmployeeState(name) === userState);
@@ -754,6 +682,7 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                         return rowName === empName;
                     });
 
+                    // Apply date filters to state totals
                     if (startDate) {
                         const parts = startDate.split('-');
                         const startDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
@@ -789,26 +718,23 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                     }
 
                     const empDept = getDepartment(empName);
+                    
+                    // Sum AR collections for state
                     if (empDept === 'AR Department') {
                         empFiltered.forEach(row => {
                             const taskLower = row.task.trim().toLowerCase();
                             if (taskLower === 'total balance collected') {
-                                if (row.collectionAmount && row.collectionAmount.toString().trim()) {
-                                    const cleanAmount = row.collectionAmount.toString().replace(/[$,\s]/g, '').trim();
-                                    const amount = parseFloat(cleanAmount);
-                                    if (!isNaN(amount) && amount > 0) stateCollectionTotal += amount;
-                                }
+                                const amount = parseNumericValue(row.collectionAmount);
+                                if (amount > 0) stateCollectionTotal += amount;
                             }
                         });
                         empFilteredInsPmt.forEach(row => {
-                            if (row.amount && row.amount.toString().trim()) {
-                                const cleanAmount = row.amount.toString().replace(/[$,\s]/g, '').trim();
-                                const amount = parseFloat(cleanAmount);
-                                if (!isNaN(amount) && amount > 0) stateCollectionTotal += amount;
-                            }
+                            const amount = parseNumericValue(row.amount);
+                            if (amount > 0) stateCollectionTotal += amount;
                         });
                     }
 
+                    // Sum Outbound production and appointments for state
                     if (empDept === 'Outbound Department') {
                         let empFilteredProduction = productionData.filter(row => {
                             let rowName = row.name.trim().replace(/^["']|["']$/g, '');
@@ -838,11 +764,8 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                         }
 
                         empFilteredProduction.forEach(row => {
-                            if (row.amount && row.amount.toString().trim()) {
-                                const cleanAmount = row.amount.toString().replace(/[$,\s]/g, '').trim();
-                                const amount = parseFloat(cleanAmount);
-                                if (!isNaN(amount) && amount > 0) stateProductionTotal += amount;
-                            }
+                            const amount = parseNumericValue(row.amount);
+                            if (amount > 0) stateProductionTotal += amount;
                         });
 
                         let empFilteredAppointments = appointmentData.filter(row => {
@@ -875,33 +798,34 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                         stateAppointmentTotal += empFilteredAppointments.reduce((sum, row) => sum + (row.count || 0), 0);
                     }
 
+                    // Sum Verification counts for state
                     if (empDept === 'Verification Department') {
                         empFiltered.forEach(row => {
                             const standardTaskName = findTaskName(row.task.trim());
                             if (standardTaskName === 'Verification' || 
                                 standardTaskName === 'Verification (M)' || 
                                 standardTaskName === 'Verification (P)') {
-                                if (row.amount && row.amount.toString().trim()) {
-                                    const amountValue = parseFloat(row.amount.toString().replace(/[$,\s]/g, '').trim());
-                                    if (!isNaN(amountValue) && amountValue > 0) {
-                                        stateVerificationTotal += amountValue;
-                                    }
+                                const amountValue = parseNumericValue(row.amount);
+                                if (amountValue > 0) {
+                                    stateVerificationTotal += amountValue;
                                 }
                             }
                         });
                     }
 
+                    // Sum all task counts for state percentages
                     empFiltered.forEach(row => {
                         const standardTaskName = findTaskName(row.task.trim());
-                        if (standardTaskName && row.amount && row.amount.toString().trim()) {
-                            const amountValue = parseFloat(row.amount.toString().replace(/[$,\s]/g, '').trim());
-                            if (!isNaN(amountValue) && amountValue > 0) {
+                        if (standardTaskName) {
+                            const amountValue = parseNumericValue(row.amount);
+                            if (amountValue > 0) {
                                 stateTaskTotals[standardTaskName] = (stateTaskTotals[standardTaskName] || 0) + amountValue;
                             }
                         }
                     });
                 });
 
+                // Calculate percentages relative to state
                 const collectionPercentage = stateCollectionTotal > 0 ? (totalCollectionAmount / stateCollectionTotal) * 100 : 0;
                 const productionPercentage = stateProductionTotal > 0 ? (totalProductionAmount / stateProductionTotal) * 100 : 0;
                 const appointmentPercentage = stateAppointmentTotal > 0 ? (totalCompletedAppointments / stateAppointmentTotal) * 100 : 0;
@@ -919,6 +843,7 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                 const sortedTasks = Object.entries(taskCounts).sort((a, b) => b[1] - a[1]);
                 const sortedUnlistedTasks = Object.entries(unlistedTasks).sort((a, b) => b[1] - a[1]);
 
+                // Calculate overall performance based on department
                 let overallPerformance = 0;
                 if (userDepartment === 'Outbound Department') {
                     const appointmentGoal = 20 * numberOfDays;
@@ -933,9 +858,7 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                     const collectionPerf = collectionGoal > 0 ? (totalCollectionAmount / collectionGoal) * 100 : 0;
                     overallPerformance = Math.min(100, collectionPerf);
                 } else if (userDepartment === 'Verification Department') {
-                    // Check if employee has mixed verification goals (CF only)
                     if (mixedVerificationEmployees[selectedName]) {
-                        // CF: Use total count vs total goal (allows compensation between M and P)
                         const verificationGoal = getEmployeeGoal(selectedName, 'verification') * numberOfDays;
                         const verificationCount = (taskCounts['Verification'] || 0) + 
                                                  (taskCounts['Verification (M)'] || 0) + 
@@ -943,7 +866,6 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                         const verificationPerf = verificationGoal > 0 ? (verificationCount / verificationGoal) * 100 : 0;
                         overallPerformance = Math.min(100, verificationPerf);
                     } else {
-                        // Standard verification employees (GZ, JCB, JTL, KR, MLC, RS)
                         const verificationGoal = getEmployeeGoal(selectedName, 'verification') * numberOfDays;
                         const verificationCount = (taskCounts['Verification'] || 0) + 
                                                  (taskCounts['Verification (M)'] || 0) + 
@@ -952,7 +874,7 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                         overallPerformance = Math.min(100, verificationPerf);
                     }
                 }
-            // PERFORMANCE CHART DATA CALCULATION
+
                 let performanceChartData = [];
                 let dateRangeType = 'daily';
 
@@ -974,7 +896,7 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                                 let dayAppointments = 0, dayCalls = 0, dayProduction = 0;
                                 dayData.forEach(row => {
                                     const standardTaskName = findTaskName(row.task.trim());
-                                    const amountValue = parseFloat((row.amount || '1').toString().replace(/[$,\s]/g, '').trim());
+                                    const amountValue = parseNumericValue(row.amount);
                                     if (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt') dayAppointments += amountValue;
                                     if (standardTaskName === 'Outbound Call') dayCalls += amountValue;
                                 });
@@ -984,8 +906,8 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                                     return rowName === selectedName && rowDate && rowDate.toDateString() === d.toDateString();
                                 });
                                 dayProduction = dayProductionData.reduce((sum, row) => {
-                                    const amount = parseFloat(row.amount.toString().replace(/[$,\s]/g, '').trim());
-                                    return sum + (isNaN(amount) ? 0 : amount);
+                                    const amount = parseNumericValue(row.amount);
+                                    return sum + amount;
                                 }, 0);
                                 const appointmentPerf = (dayAppointments / 20) * 100;
                                 const callPerf = (dayCalls / 100) * 100;
@@ -996,9 +918,9 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                                 let dayCollection = 0;
                                 dayData.forEach(row => {
                                     const taskLower = row.task.trim().toLowerCase();
-                                    if (taskLower === 'total balance collected' && row.collectionAmount && row.collectionAmount.toString().trim()) {
-                                        const amount = parseFloat(row.collectionAmount.toString().replace(/[$,\s]/g, '').trim());
-                                        if (!isNaN(amount) && amount > 0) dayCollection += amount;
+                                    if (taskLower === 'total balance collected') {
+                                        const amount = parseNumericValue(row.collectionAmount);
+                                        if (amount > 0) dayCollection += amount;
                                     }
                                 });
                                 const dayInsPmtData = filteredInsPmt.filter(row => {
@@ -1006,8 +928,8 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                                     return rowDate && rowDate.toDateString() === d.toDateString();
                                 });
                                 dayInsPmtData.forEach(row => {
-                                    const amount = parseFloat(row.amount.toString().replace(/[$,\s]/g, '').trim());
-                                    if (!isNaN(amount) && amount > 0) dayCollection += amount;
+                                    const amount = parseNumericValue(row.amount);
+                                    if (amount > 0) dayCollection += amount;
                                 });
                                 const collectionGoalDaily = getEmployeeGoal(selectedName, 'collection');
                                 dayPerformance = collectionGoalDaily > 0 ? Math.min(100, (dayCollection / collectionGoalDaily) * 100) : 0;
@@ -1018,8 +940,8 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                                     if (standardTaskName === 'Verification' || 
                                         standardTaskName === 'Verification (M)' || 
                                         standardTaskName === 'Verification (P)') {
-                                        const amountValue = parseFloat(row.amount.toString().replace(/[$,\s]/g, '').trim());
-                                        if (!isNaN(amountValue) && amountValue > 0) dayVerifications += amountValue;
+                                        const amountValue = parseNumericValue(row.amount);
+                                        if (amountValue > 0) dayVerifications += amountValue;
                                     }
                                 });
                                 const verificationGoalDaily = getEmployeeGoal(selectedName, 'verification');
@@ -1049,9 +971,9 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                                 let weekAppointments = 0, weekCalls = 0, weekProduction = 0;
                                 weekData.forEach(row => {
                                     const standardTaskName = findTaskName(row.task.trim());
-                                    const amountValue = parseFloat((row.amount || '1').toString().replace(/[$,\s]/g, '').trim());
+                                    const amountValue = parseNumericValue(row.amount);
                                     if (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt') weekAppointments += amountValue;
-                                     weekCalls += amountValue;
+                                    if (standardTaskName === 'Outbound Call') weekCalls += amountValue;
                                 });
                                 const weekProductionData = productionData.filter(row => {
                                     const rowName = row.name.trim().replace(/^["']|["']$/g, '');
@@ -1059,8 +981,8 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                                     return rowName === selectedName && rowDate && rowDate >= week.start && rowDate <= week.end;
                                 });
                                 weekProduction = weekProductionData.reduce((sum, row) => {
-                                    const amount = parseFloat(row.amount.toString().replace(/[$,\s]/g, '').trim());
-                                    return sum + (isNaN(amount) ? 0 : amount);
+                                    const amount = parseNumericValue(row.amount);
+                                    return sum + amount;
                                 }, 0);
                                 const appointmentGoalWeek = 20 * weekDays;
                                 const callGoalWeek = 100 * weekDays;
@@ -1073,9 +995,9 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                                 let weekCollection = 0;
                                 weekData.forEach(row => {
                                     const taskLower = row.task.trim().toLowerCase();
-                                    if (taskLower === 'total balance collected' && row.collectionAmount && row.collectionAmount.toString().trim()) {
-                                        const amount = parseFloat(row.collectionAmount.toString().replace(/[$,\s]/g, '').trim());
-                                        if (!isNaN(amount) && amount > 0) weekCollection += amount;
+                                    if (taskLower === 'total balance collected') {
+                                        const amount = parseNumericValue(row.collectionAmount);
+                                        if (amount > 0) weekCollection += amount;
                                     }
                                 });
                                 const weekInsPmtData = filteredInsPmt.filter(row => {
@@ -1083,8 +1005,8 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                                     return rowDate && rowDate >= week.start && rowDate <= week.end;
                                 });
                                 weekInsPmtData.forEach(row => {
-                                    const amount = parseFloat(row.amount.toString().replace(/[$,\s]/g, '').trim());
-                                    if (!isNaN(amount) && amount > 0) weekCollection += amount;
+                                    const amount = parseNumericValue(row.amount);
+                                    if (amount > 0) weekCollection += amount;
                                 });
                                 const collectionGoalWeek = getEmployeeGoal(selectedName, 'collection') * weekDays;
                                 weekPerformance = collectionGoalWeek > 0 ? Math.min(100, (weekCollection / collectionGoalWeek) * 100) : 0;
@@ -1095,8 +1017,8 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                                     if (standardTaskName === 'Verification' || 
                                         standardTaskName === 'Verification (M)' || 
                                         standardTaskName === 'Verification (P)') {
-                                        const amountValue = parseFloat(row.amount.toString().replace(/[$,\s]/g, '').trim());
-                                        if (!isNaN(amountValue) && amountValue > 0) weekVerifications += amountValue;
+                                        const amountValue = parseNumericValue(row.amount);
+                                        if (amountValue > 0) weekVerifications += amountValue;
                                     }
                                 });
                                 const verificationGoalWeek = getEmployeeGoal(selectedName, 'verification') * weekDays;
@@ -1128,9 +1050,9 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                                 let monthAppointments = 0, monthCalls = 0, monthProduction = 0;
                                 monthData.forEach(row => {
                                     const standardTaskName = findTaskName(row.task.trim());
-                                    const amountValue = parseFloat((row.amount || '1').toString().replace(/[$,\s]/g, '').trim());
+                                    const amountValue = parseNumericValue(row.amount);
                                     if (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt') monthAppointments += amountValue;
-                                     monthCalls += amountValue;
+                                    if (standardTaskName === 'Outbound Call') monthCalls += amountValue;
                                 });
                                 const monthProductionData = productionData.filter(row => {
                                     const rowName = row.name.trim().replace(/^["']|["']$/g, '');
@@ -1138,8 +1060,8 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                                     return rowName === selectedName && rowDate && rowDate >= month.start && rowDate <= month.end;
                                 });
                                 monthProduction = monthProductionData.reduce((sum, row) => {
-                                    const amount = parseFloat(row.amount.toString().replace(/[$,\s]/g, '').trim());
-                                    return sum + (isNaN(amount) ? 0 : amount);
+                                    const amount = parseNumericValue(row.amount);
+                                    return sum + amount;
                                 }, 0);
                                 const appointmentGoalMonth = 20 * monthDays;
                                 const callGoalMonth = 100 * monthDays;
@@ -1152,9 +1074,9 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                                 let monthCollection = 0;
                                 monthData.forEach(row => {
                                     const taskLower = row.task.trim().toLowerCase();
-                                    if (taskLower === 'total balance collected' && row.collectionAmount && row.collectionAmount.toString().trim()) {
-                                        const amount = parseFloat(row.collectionAmount.toString().replace(/[$,\s]/g, '').trim());
-                                        if (!isNaN(amount) && amount > 0) monthCollection += amount;
+                                    if (taskLower === 'total balance collected') {
+                                        const amount = parseNumericValue(row.collectionAmount);
+                                        if (amount > 0) monthCollection += amount;
                                     }
                                 });
                                 const monthInsPmtData = filteredInsPmt.filter(row => {
@@ -1162,8 +1084,8 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                                     return rowDate && rowDate >= month.start && rowDate <= month.end;
                                 });
                                 monthInsPmtData.forEach(row => {
-                                    const amount = parseFloat(row.amount.toString().replace(/[$,\s]/g, '').trim());
-                                    if (!isNaN(amount) && amount > 0) monthCollection += amount;
+                                    const amount = parseNumericValue(row.amount);
+                                    if (amount > 0) monthCollection += amount;
                                 });
                                 const collectionGoalMonth = getEmployeeGoal(selectedName, 'collection') * monthDays;
                                 monthPerformance = collectionGoalMonth > 0 ? Math.min(100, (monthCollection / collectionGoalMonth) * 100) : 0;
@@ -1174,8 +1096,8 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                                     if (standardTaskName === 'Verification' || 
                                         standardTaskName === 'Verification (M)' || 
                                         standardTaskName === 'Verification (P)') {
-                                        const amountValue = parseFloat(row.amount.toString().replace(/[$,\s]/g, '').trim());
-                                        if (!isNaN(amountValue) && amountValue > 0) monthVerifications += amountValue;
+                                        const amountValue = parseNumericValue(row.amount);
+                                        if (amountValue > 0) monthVerifications += amountValue;
                                     }
                                 });
                                 const verificationGoalMonth = getEmployeeGoal(selectedName, 'verification') * monthDays;
@@ -1212,7 +1134,7 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
             const performance = calculatePerformance();
             const perfColor = performance ? getPerformanceColor(performance.overallPerformance) : null;
 
-            // UI RENDERING
+            // PART 5/5: UI RENDERING
             return (
                 <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
                     <div className="max-w-7xl mx-auto">
@@ -1278,7 +1200,7 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                                                 </h3>
                                             </div>
                                             <p className="text-white text-3xl font-bold mb-2">
-                                                {performance.department === 'AR Department' ? `$${parseFloat(performance.totalCollectionAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : performance.department === 'Outbound Department' ? `$${parseFloat(performance.totalProductionAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : performance.verificationCount}
+                                                {performance.department === 'AR Department' ? `${parseFloat(performance.totalCollectionAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : performance.department === 'Outbound Department' ? `${parseFloat(performance.totalProductionAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : performance.verificationCount}
                                             </p>
                                             <div className="flex items-center gap-2">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1306,7 +1228,7 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
                                                 </h3>
                                             </div>
                                             <p className="text-white text-3xl font-bold mb-2">
-                                                {performance.department === 'AR Department' && performance.collectionGoal ? `$${performance.collectionGoal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : performance.department === 'Outbound Department' && performance.productionGoal ? `$${performance.productionGoal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : Math.round(performance.verificationGoal || 0)}
+                                                {performance.department === 'AR Department' && performance.collectionGoal ? `${performance.collectionGoal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : performance.department === 'Outbound Department' && performance.productionGoal ? `${performance.productionGoal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : Math.round(performance.verificationGoal || 0)}
                                             </p>
                                             <p className="text-purple-300 text-sm font-medium">{performance.numberOfDays} working {performance.numberOfDays === 1 ? 'day' : 'days'}</p>
                                         </div>
@@ -1455,10 +1377,3 @@ console.log(`Final totalCompletedAppointments for ${selectedName}: ${totalComple
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
