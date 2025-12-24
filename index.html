@@ -397,44 +397,40 @@
                     }
 
                     const productionResults = [];
-for (const sheetName of COLLECTION_SHEETS) {
-    try {
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values/${sheetName}!A:C?key=${API_KEY}`;
-        const response = await fetch(url);
-        if (response.ok) {
-            const result = await response.json();
-            productionResults.push({ sheetName, rows: result.values || [] });
-        } else {
-            console.warn(`Failed to fetch production from ${sheetName}: ${response.status}`);
-            productionResults.push({ sheetName, rows: [] });
-        }
-        await new Promise(resolve => setTimeout(resolve, 300));
-    } catch (err) {
-        console.warn(`Failed to fetch production from ${sheetName}:`, err);
-        productionResults.push({ sheetName, rows: [] });
-    }
-}
-console.log('Production results loaded:', productionResults.length, 'sheets');
+                    for (const sheetName of COLLECTION_SHEETS) {
+                        try {
+                            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values/${sheetName}!A:C?key=${API_KEY}`;
+                            const response = await fetch(url);
+                            if (response.ok) {
+                                const result = await response.json();
+                                productionResults.push({ sheetName, rows: result.values || [] });
+                            } else {
+                                productionResults.push({ sheetName, rows: [] });
+                            }
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                        } catch (err) {
+                            console.warn(`Failed to fetch production from ${sheetName}:`, err);
+                            productionResults.push({ sheetName, rows: [] });
+                        }
+                    }
 
-const appointmentResults = [];
-for (const sheetName of COLLECTION_SHEETS) {
-    try {
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values/${sheetName}!A:D?key=${API_KEY}`;
-        const response = await fetch(url);
-        if (response.ok) {
-            const result = await response.json();
-            appointmentResults.push({ sheetName, rows: result.values || [] });
-        } else {
-            console.warn(`Failed to fetch appointments from ${sheetName}: ${response.status}`);
-            appointmentResults.push({ sheetName, rows: [] });
-        }
-        await new Promise(resolve => setTimeout(resolve, 300));
-    } catch (err) {
-        console.warn(`Failed to fetch appointments from ${sheetName}:`, err);
-        appointmentResults.push({ sheetName, rows: [] });
-    }
-}
-console.log('Appointment results loaded:', appointmentResults.length, 'sheets');
+                    const appointmentResults = [];
+                    for (const sheetName of COLLECTION_SHEETS) {
+                        try {
+                            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values/${sheetName}!A:D?key=${API_KEY}`;
+                            const response = await fetch(url);
+                            if (response.ok) {
+                                const result = await response.json();
+                                appointmentResults.push({ sheetName, rows: result.values || [] });
+                            } else {
+                                appointmentResults.push({ sheetName, rows: [] });
+                            }
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                        } catch (err) {
+                            console.warn(`Failed to fetch appointments from ${sheetName}:`, err);
+                            appointmentResults.push({ sheetName, rows: [] });
+                        }
+                    }
 
                     const parsedData = rows1.slice(1).map(row => ({
                         date: row[0] || '', task: row[3] || '', amount: row[4] || '',
@@ -683,34 +679,13 @@ console.log('Appointment results loaded:', appointmentResults.length, 'sheets');
                         });
                     }
 
-                    const parsedProductionData = [];
-productionResults.forEach(({ sheetName, rows }) => {
-    console.log(`Processing production sheet: ${sheetName}, rows: ${rows.length}`);
-    if (rows.length > 1) {
-        rows.slice(1).forEach(row => {
-            if (row.length >= 3) {
-                const rawName = row[2] || '';
-                const cleanName = normalizeEmployeeName(rawName);
-                const dateValue = row[0] || '';
-                const amountValue = row[1] || '';
-                console.log(`Row data - Date: ${dateValue}, Amount: ${amountValue}, RawName: ${rawName}, CleanName: ${cleanName}`);
-                if (cleanName && dateValue && amountValue && allAllowedNames.includes(cleanName)) {
-                    parsedProductionData.push({ 
-                        date: dateValue, 
-                        amount: amountValue, 
-                        name: cleanName, 
-                        office: sheetName, 
-                        source: `Production-${sheetName}` 
+                    filteredProduction.forEach(row => {
+                        if (row.amount && row.amount.toString().trim()) {
+                            const cleanAmount = row.amount.toString().replace(/[$,\s]/g, '').trim();
+                            const amount = parseFloat(cleanAmount);
+                            if (!isNaN(amount) && amount > 0) totalProductionAmount += amount;
+                        }
                     });
-                    console.log(`✓ Added production data for ${cleanName}`);
-                } else {
-                    console.log(`✗ Skipped - cleanName: ${cleanName}, dateValue: ${dateValue}, amountValue: ${amountValue}, inAllowedNames: ${allAllowedNames.includes(cleanName)}`);
-                }
-            }
-        });
-    }
-});
-console.log(`Total production records parsed: ${parsedProductionData.length}`);
 
                     let filteredAppointments = appointmentData.filter(row => {
                         let rowName = row.name.trim().replace(/^["']|["']$/g, '');
@@ -1471,10 +1446,6 @@ console.log(`Total production records parsed: ${parsedProductionData.length}`);
     </script>
 </body>
 </html>
-
-
-
-
 
 
 
