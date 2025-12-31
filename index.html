@@ -444,51 +444,70 @@
                 setLoading(true);
                 setSuccess('');
                 try {
-                    const departments = {
-                        collection: 'AR Department',
-                        production: 'Outbound Department',
-                        appointment: 'Outbound Department',
-                        call: 'Outbound Department',
-                        verification: 'Verification Department'
-                    };
+            const departments = {
+                collection: 'AR Department',
+                production: 'Outbound Department',
+                appointment: 'Outbound Department',
+                call: 'Outbound Department',
+                verification: 'Verification Department'
+                };
 
-                    const goalTypes = {
-                        collection: 'Collection',
-                        production: 'Production',
-                        appointment: 'Appointment',
-                        call: 'Call',
-                        verification: 'Verification'
-                    };
+            const goalTypes = {
+                collection: 'Collection',
+                production: 'Production',
+                appointment: 'Appointment',
+                call: 'Call',
+                verification: 'Verification'
+                };
 
-                    for (const goal of goals) {
-                        for (const [key, value] of Object.entries(goal)) {
-                            if (key !== 'office' && value && parseFloat(value) > 0) {
-                                const rowData = [
-                                    '',
-                                    departments[key],
-                                    goal.office,
-                                    '',
-                                    goalTypes[key],
-                                    parseFloat(value),
-                                    selectedMonth,
-                                    selectedYear
-                                ];
-                                await appendToAdminConfig(rowData);
-                            }
+             // BATCH: Collect all rows first
+                const allRows = [];
+                const now = new Date().toLocaleDateString();
+        
+                for (const goal of goals) {
+                    for (const [key, value] of Object.entries(goal)) {
+                        if (key !== 'office' && value && parseFloat(value) > 0) {
+                            const rowData = [
+                                '',
+                                departments[key],
+                                goal.office,
+                                '',
+                                goalTypes[key],
+                                parseFloat(value),
+                                selectedMonth,
+                                selectedYear,
+                                now
+                            ];
+                            allRows.push(rowData);
                         }
                     }
-
-                    setSuccess('Goals saved successfully!');
-                    setTimeout(() => {
-                        onClose();
-                    }, 1500);
-                } catch (error) {
-                    console.error('Error saving goals:', error);
-                    alert('Failed to save goals: ' + error.message);
-                } finally {
-                    setLoading(false);
                 }
-            };
+
+            // Single batch API call
+                if (allRows.length > 0) {
+                    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Admin_Config!A:I:append?valueInputOption=RAW&key=${API_KEY}`;
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            values: allRows
+                        })
+                    });
+            
+              if (!response.ok) throw new Error('Failed to save goals');
+            }
+
+                setSuccess('Goals saved successfully!');
+                setTimeout(() => {
+                    onClose();
+                }, 1500);
+            } catch (error) {
+                console.error('Error saving goals:', error);
+                alert('Failed to save goals: ' + error.message);
+            } finally {
+                setLoading(false);
+            }
+        };
 
             return (
                 <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
@@ -644,33 +663,52 @@
                 setLoading(true);
                 setSuccess('');
                 try {
-                    for (const assignment of assignments) {
-                        if (assignment.department && assignment.office) {
-                            const rowData = [
-                                assignment.employeeCode,
-                                assignment.department,
-                                assignment.office,
-                                assignment.state,
-                                '',
-                                '',
-                                selectedMonth,
-                                selectedYear
-                            ];
-                            await appendToAdminConfig(rowData);
-                        }
-                    }
+            // BATCH: Collect all rows first
+                const allRows = [];
+                const now = new Date().toLocaleDateString();
+        
+                for (const assignment of assignments) {
+                    if (assignment.department && assignment.office) {
+                        const rowData = [
+                            assignment.employeeCode,
+                    assignment.department,
+                    assignment.office,
+                    assignment.state,
+                    '',
+                    '',
+                    selectedMonth,
+                    selectedYear,
+                    now
+                ];
+                allRows.push(rowData);
+            }
+        }
 
-                    setSuccess('Assignments saved successfully!');
-                    setTimeout(() => {
-                        onClose();
-                    }, 1500);
-                } catch (error) {
-                    console.error('Error saving assignments:', error);
-                    alert('Failed to save assignments: ' + error.message);
-                } finally {
-                    setLoading(false);
-                }
-            };
+        // Single batch API call
+        if (allRows.length > 0) {
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Admin_Config!A:I:append?valueInputOption=RAW&key=${API_KEY}`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    values: allRows
+                })
+            });
+            
+            if (!response.ok) throw new Error('Failed to save assignments');
+        }
+
+        setSuccess('Assignments saved successfully!');
+        setTimeout(() => {
+            onClose();
+        }, 1500);
+    } catch (error) {
+        console.error('Error saving assignments:', error);
+        alert('Failed to save assignments: ' + error.message);
+    } finally {
+        setLoading(false);
+    }
+};
 
             return (
                 <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
@@ -1504,3 +1542,4 @@
     </script>
 </body>
 </html>
+
