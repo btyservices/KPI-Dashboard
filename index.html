@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KPI Dashboard - Enhanced</title>
+    <title>KPI Dashboard - Admin</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -14,6 +14,20 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: rgb(51, 65, 85); border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgb(100, 116, 139); border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgb(148, 163, 184); }
+        
+        .modal-backdrop {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+        }
+        
+        .admin-card {
+            transition: all 0.3s ease;
+        }
+        
+        .admin-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -21,62 +35,22 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // Configuration Data
-        const departments = {
-            'AR Department': ['AD', 'AB','BDZ', 'BZ', 'GA', 'GG', 'HGB', 'IS', 'JA', 'JM', 'JS', 'KPM', 'LG', 'MB', 'MGS', 'NB', 'PT', 'RM', 'SPA', 'MCB', 'MA', 'VR', 'RD', 'LSA'],
-            'Outbound Department': ['AMD', 'BM', 'CB', 'CC', 'CDC', 'DMA', 'ED', 'EMP', 'GC', 'GD', 'GP', 'HMA', 'IM', 'ISC', 'JC', 'JI', 'JL', 'JP', 'JRC', 'LL', 'LV', 'NZ', 'PB', 'RG', 'SMS', 'VL', 'WM'],
-            'Verification Department': ['CF', 'GZ', 'JCB', 'JTL', 'KR', 'MLC', 'RS']
-        };
+        // PART 1: API Configuration
+        const SHEET_ID = '1asg-4czF_ITFPxvBpyRcjMLjhjl6XGRk0_FLsrQ4D6g';
+        const SHEET_ID_2 = '1U0DAPmqFTSI343bls0sj732JsRb7a6E_QLwNLSqAklw';
+        const SHEET_ID_3 = '1kPorRymNrDSzUXkCwliBWOllBvAILQDWtvrtdyZBTuo';
+        const API_KEY = 'AIzaSyAeiFMlkhhDjEahdKksbS6HomSCbO9iQ50';
+        const ADMIN_PASSWORD = 'admin123'; // Change this password
 
-        const allAllowedNames = [...departments['AR Department'], ...departments['Outbound Department'], ...departments['Verification Department']];
+        const COLLECTION_SHEETS = [
+            'CA-CH', 'CA-WC', 'CA-QH', 'CA-TS', 'CA-SPD',
+            'WA-AR', 'WA-LW', 'WA-AL', 'WA-SS', 'WA-BD',
+            'WA-BR', 'WA-NP', 'WA-FW', 'WA-WD', 'WA-FD',
+            'WA-SM', 'WA-BL', 'WA-SP', 'WA-SH', 'WA-PY', 'WA-FF',
+            'WA-TM', 'WA-UP', 'WA-DP', 'WA-AD', 'WA-WO-FD', 'WA-WO-BD', 'AK'
+        ];
 
-        const employeeNameMapping = {
-            'ADIVINAGRACIA': 'AD', 'ADIVINA': 'AD', '**AD': 'AD', 'ABARIOGA': 'AB', '**AB': 'AB',
-            'BZARATE': 'BZ', '**BZ': 'BZ', 'GAGBUYA': 'GA', 'ISECONG': 'IS', 'HBAGAPORO': 'HGB',
-            'JARREY': 'JA', 'RDELAPAZ': 'RD', 'KMAPAIT': 'KPM', 'GGUJILDE': 'GG', 'JMORTIZ': 'JM',
-            'LGUARNES': 'LG', 'LSALAGANTIN': 'LSA', 'JSIMYUNN': 'JS', 'MAUGUSTO': 'MA',
-            'MBONGO': 'MB', 'MBACLAYON': 'MCB', 'MSAQUIAN': 'MGS', 'NBOLIVAR': 'NB',
-            'PTIPAN': 'PT', 'JMERCADO': 'RM', 'VRUZOL': 'VR', 'SADVINCULA': 'SPA',
-            '**GA': 'GA', '**IS': 'IS', '**HGB': 'HGB', '**JA': 'JA', '**RD': 'RD',
-            '**KPM': 'KPM', '**GG': 'GG', '**JM': 'JM', '**LG': 'LG', '**LSA': 'LSA',
-            '**JS': 'JS', '**MA': 'MA', '**MB': 'MB', '**MCB': 'MCB', '**MGS': 'MGS',
-            '**NB': 'NB', '**PT': 'PT', '**RM': 'RM', '**VR': 'VR', '**SPA': 'SPA',
-            'CLIGASAN': 'JL', 'GCOLINARES': 'GC', 'CBONOSTRO': 'CB', 'DAULIDA': 'DMA',
-            'EMPANGILINAN': 'EMP', 'JCUNANAN': 'JC', 'BMANALO': 'BM', 'PBENITEZ': 'PB',
-            'NZAMBRANO': 'NZ', 'VLAGAN': 'VL', 'ISTACRUZ': 'ISC', 'LLAGAN': 'LL',
-            'EDORONIO': 'ED', 'LVILLARES': 'LV', 'SSALVEJO': 'SMS', 'CCAPISPISAN': 'CDC',
-            'JCADAVEZ': 'JRC', 'ADAUMAR': 'AMD', 'HALFONSO': 'HMA', 'JOGARIO': 'JP',
-            'IMORGADO': 'IM', 'GPAYORAN': 'GP', 'WMEJARES': 'WM', 'RGUAVES': 'RG',
-            'CCAPOY': 'CC', 'JINCENZO': 'JI', 'GDELACRUZ': 'GD', 'JHUAGON': 'JI',
-            'MSECONG': 'IS', 'ABARIOGA': 'AB', 'JMORTIZ': 'RM'
-        };
-
-        const employeeStateAssignments = {
-            'AD': 'Alaska', 'AB': 'Alaska', 'BDZ': 'Washington', 'BZ': 'California', 'GA': 'Washington',
-            'GG': 'Washington', 'HGB': 'Washington', 'IS': 'Washington', 'JA': 'Washington',
-            'JM': 'Alaska', 'JS': 'California', 'KPM': 'Washington', 'LG': 'Alaska',
-            'MB': 'Washington', 'MGS': 'Washington', 'NB': 'California', 'PT': 'Alaska',
-            'RM': 'Alaska', 'SPA': 'Washington', 'MCB': 'Washington', 'MA': 'Washington',
-            'VR': 'Alaska', 'RD': 'Washington', 'LSA': 'Washington',
-            'AMD': 'Washington', 'BM': 'Alaska', 'CB': 'Alaska', 'CC': 'Washington',
-            'CDC': 'Washington', 'DMA': 'Alaska', 'ED': 'Washington', 'EMP': 'Alaska',
-            'GC': 'Alaska', 'GD': 'Washington', 'GP': 'Washington', 'HMA': 'Washington',
-            'IM': 'Washington', 'ISC': 'Washington', 'JC': 'Alaska', 'JI': 'Washington',
-            'JL': 'Alaska', 'JP': 'Washington', 'JRC': 'Washington', 'LL': 'Washington',
-            'LV': 'Washington', 'NZ': 'Alaska', 'PB': 'Alaska', 'RG': 'Washington',
-            'SMS': 'Washington', 'VL': 'Washington', 'WM': 'Washington',
-            'CF': 'Alaska', 'GZ': 'Alaska', 'JCB': 'Washington', 'JTL': 'Washington',
-            'KR': 'Washington', 'MLC': 'Alaska', 'RS': 'Washington'
-        };
-
-        const stateGoals = {
-            'Alaska': { collection: 7500, production: 12269, verification: 50 },
-            'Washington': { collection: 8087.12, production: 11039, verification: 50 },
-            'California': { collection: 4545, production: 95000, verification: 50 }
-        };
-
-        const mixedVerificationEmployees = {};
-
+        // PART 2: Task Mapping
         const tasksList = [
             'Aging- Closed Denied Claims', 'Aging- Closed Paid Claims', 'Aging- Resubmit Claims',
             'Aging- Review Claims', 'Aging- Voided Claims', 'Allocation Correction Log',
@@ -127,105 +101,15 @@
         tasksList.forEach(taskName => { taskLookup[taskName.toLowerCase().trim()] = taskName; });
         Object.entries(taskMapping).forEach(([original, standard]) => { taskLookup[original] = standard; });
 
-        const SHEET_ID = '1asg-4czF_ITFPxvBpyRcjMLjhjl6XGRk0_FLsrQ4D6g';
-        const SHEET_ID_2 = '1U0DAPmqFTSI343bls0sj732JsRb7a6E_QLwNLSqAklw';
-        const SHEET_ID_3 = '1kPorRymNrDSzUXkCwliBWOllBvAILQDWtvrtdyZBTuo';
-        const API_KEY = 'AIzaSyAeiFMlkhhDjEahdKksbS6HomSCbO9iQ50';
-
-        const COLLECTION_SHEETS = [
-            'CA-CH', 'CA-WC', 'CA-QH', 'CA-TS', 'CA-SPD',
-            'WA-AR', 'WA-LW', 'WA-AL', 'WA-SS', 'WA-BD',
-            'WA-BR', 'WA-NP', 'WA-FW', 'WA-WD', 'WA-FD',
-            'WA-SM', 'WA-BL', 'WA-SP', 'WA-SH', 'WA-PY', 'WA-FF',
-            'WA-TM', 'WA-UP', 'WA-DP', 'WA-AD', 'WA-WO-FD', 'WA-WO-BD', 'AK'
-        ];
-
-        // PART 2/5: HELPER FUNCTIONS
-        
-        // Unified numeric value parser - handles all formats consistently
+        // PART 2: Helper Functions
         const parseNumericValue = (value) => {
             if (value === null || value === undefined) return 0;
             if (typeof value === 'number') return value;
             const str = value.toString().trim();
             if (str === '' || str === '-') return 0;
-            // Remove dollar signs, commas, and spaces
             const cleaned = str.replace(/[$,\s]/g, '');
             const parsed = parseFloat(cleaned);
             return isNaN(parsed) ? 0 : parsed;
-        };
-
-        const normalizeEmployeeName = (rawName) => {
-            if (!rawName) return null;
-            let name = rawName.trim().replace(/^["']|["']$/g, '');
-            
-            // Remove numeric prefixes like "12.0 ADIVINA" -> "ADIVINA"
-            name = name.replace(/^\d+\.?\d*\s+/, '');
-            
-            // Handle " - " separator
-            if (name.includes(' - ')) name = name.split(' - ')[0].trim();
-            
-            // Remove trailing " R" or " P" status indicators
-            name = name.replace(/\s+[RP]$/i, '');
-            
-            // First check if already in correct format (case-sensitive check for initials)
-            if (allAllowedNames.includes(name)) return name;
-            
-            // Convert to uppercase for case-insensitive matching
-            const upperName = name.toUpperCase();
-            
-            // Check if uppercase version is in allowed names
-            if (allAllowedNames.includes(upperName)) return upperName;
-            
-            // Check mapping (now case-insensitive)
-            if (employeeNameMapping[upperName]) return employeeNameMapping[upperName];
-            
-            // Try removing spaces and checking again (for "ADIVINA GRACI" -> "ADIVINAGRACI")
-            const noSpaces = upperName.replace(/\s+/g, '');
-            if (employeeNameMapping[noSpaces]) return employeeNameMapping[noSpaces];
-            if (allAllowedNames.includes(noSpaces)) return noSpaces;
-            
-            // Extract initials from lowercase usernames (like "jsimyunn" -> "JS")
-            if (name.length >= 2 && /^[a-z]+$/.test(name)) {
-                const possibleInitials = name.substring(0, 2).toUpperCase();
-                if (allAllowedNames.includes(possibleInitials)) {
-                    return possibleInitials;
-                }
-                const match = name.match(/^([a-z])[aeiou]*([a-z])/i);
-                if (match) {
-                    const initials = (match[1] + match[2]).toUpperCase();
-                    if (allAllowedNames.includes(initials)) {
-                        return initials;
-                    }
-                }
-            }
-            
-            return null;
-        };
-
-        const getDepartment = (name) => {
-            for (const [dept, names] of Object.entries(departments)) {
-                if (names.includes(name)) return dept;
-            }
-            return 'Unknown';
-        };
-
-        const getEmployeeState = (name) => employeeStateAssignments[name] || 'Unknown';
-
-        const getEmployeeGoal = (name, type) => {
-            const state = getEmployeeState(name);
-            const dept = getDepartment(name);
-            if (state === 'Unknown' || !stateGoals[state]) return 0;
-            if (type === 'collection' && dept === 'AR Department') return stateGoals[state].collection;
-            else if (type === 'production' && dept === 'Outbound Department') return stateGoals[state].production;
-            else if (type === 'verification' && dept === 'Verification Department') {
-                if (mixedVerificationEmployees[name]) {
-                    const config = mixedVerificationEmployees[name];
-                    return (config.verificationM.goal * config.verificationM.weight) + 
-                           (config.verificationP.goal * config.verificationP.weight);
-                }
-                return stateGoals[state].verification;
-            }
-            return 0;
         };
 
         const findTaskName = (taskName) => {
@@ -236,9 +120,7 @@
         const parseDate = (dateStr) => {
             if (!dateStr) return null;
             let dateOnly = dateStr.toString().trim();
-            if (dateOnly.includes(' ')) {
-                dateOnly = dateOnly.split(' ')[0];
-            }
+            if (dateOnly.includes(' ')) dateOnly = dateOnly.split(' ')[0];
             if (dateOnly.includes('-')) {
                 const parts = dateOnly.split('-');
                 if (parts.length === 3) {
@@ -289,8 +171,782 @@
             return { bg: 'from-red-500 to-orange-400', text: 'text-red-300', icon: 'bg-red-600/20', border: 'border-red-400' };
         };
 
-        // PART 3/5: PERFORMANCE CHART COMPONENT
-        const PerformanceChart = ({ performanceData, dateRange }) => {
+        // PART 3: Admin Modal Components
+        const PasswordModal = ({ onClose, onSuccess }) => {
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (password === ADMIN_PASSWORD) {
+                    onSuccess();
+                } else {
+                    setError('Incorrect password');
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-8 border border-slate-600 shadow-2xl max-w-md w-full mx-4">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-3 rounded-xl">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                </svg>
+                            </div>
+                            <h2 className="text-2xl font-bold text-white">Admin Access</h2>
+                        </div>
+                        
+                        <form onSubmit={handleSubmit}>
+                            <div className="mb-6">
+                                <label className="block text-slate-300 text-sm font-semibold mb-2">Password</label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                                    className="w-full bg-slate-700 text-white border border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                    placeholder="Enter admin password"
+                                    autoFocus
+                                />
+                                {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
+                            </div>
+                            
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition-all font-semibold"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 px-4 py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl transition-all font-semibold shadow-lg"
+                                >
+                                    Enter
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        const AdminMenu = ({ onClose, onSelectOption }) => {
+            const menuItems = [
+                { id: 'goals', title: 'Goal Management', icon: '📊', desc: 'Set goals by office and month', color: 'from-blue-500 to-cyan-600' },
+                { id: 'employees', title: 'Employee Assignment', icon: '👥', desc: 'Assign employees to departments', color: 'from-purple-500 to-pink-600' },
+                { id: 'add-employee', title: 'Add Employee', icon: '➕', desc: 'Add new employee codes', color: 'from-green-500 to-emerald-600' },
+                { id: 'add-office', title: 'Add Office', icon: '🏢', desc: 'Add new office locations', color: 'from-orange-500 to-amber-600' }
+            ];
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-8 border border-slate-600 shadow-2xl max-w-4xl w-full mx-4">
+                        <div className="flex items-center justify-between mb-8">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-3 rounded-xl">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                                        <circle cx="12" cy="12" r="3"/>
+                                        <path d="M12 1v6m0 6v6m5.657-13.657l-4.243 4.243m-2.828 2.828l-4.243 4.243m16.97-1.414l-6-6m-6-6l-6 6"/>
+                                    </svg>
+                                </div>
+                                <h2 className="text-2xl font-bold text-white">Admin Dashboard</h2>
+                            </div>
+                            <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {menuItems.map(item => (
+                                <div
+                                    key={item.id}
+                                    onClick={() => onSelectOption(item.id)}
+                                    className="admin-card bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl p-6 border border-slate-600 hover:border-slate-500 cursor-pointer"
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <div className={`bg-gradient-to-br ${item.color} p-4 rounded-xl text-3xl shadow-lg`}>
+                                            {item.icon}
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
+                                            <p className="text-slate-400 text-sm">{item.desc}</p>
+                                        </div>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
+                                            <polyline points="9 18 15 12 9 6"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // PART 4: Google Sheets API Functions
+        const fetchAdminConfig = async () => {
+            try {
+                const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Admin_Config!A:I?key=${API_KEY}`;
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to fetch Admin_Config');
+                const result = await response.json();
+                const rows = result.values || [];
+                
+                if (rows.length === 0) return { employees: [], goals: [], offices: new Set(), employeeCodes: new Set() };
+                
+                const headers = rows[0];
+                const data = rows.slice(1);
+                
+                const employees = [];
+                const goals = [];
+                const offices = new Set();
+                const employeeCodes = new Set();
+                
+                data.forEach(row => {
+                    const employeeCode = row[0] || '';
+                    const department = row[1] || '';
+                    const office = row[2] || '';
+                    const state = row[3] || '';
+                    const goalType = row[4] || '';
+                    const goalValue = row[5] || '';
+                    const effectiveMonth = row[6] || '';
+                    const effectiveYear = row[7] || '';
+                    
+                    if (office) offices.add(office);
+                    
+                    if (employeeCode.trim()) {
+                        employeeCodes.add(employeeCode);
+                        employees.push({
+                            employeeCode,
+                            department,
+                            office,
+                            state,
+                            effectiveMonth: parseInt(effectiveMonth) || 0,
+                            effectiveYear: parseInt(effectiveYear) || 0
+                        });
+                    } else if (goalType.trim()) {
+                        goals.push({
+                            department,
+                            office,
+                            state,
+                            goalType,
+                            goalValue: parseFloat(goalValue) || 0,
+                            effectiveMonth: parseInt(effectiveMonth) || 0,
+                            effectiveYear: parseInt(effectiveYear) || 0
+                        });
+                    }
+                });
+                
+                return { employees, goals, offices: Array.from(offices).sort(), employeeCodes: Array.from(employeeCodes).sort() };
+            } catch (error) {
+                console.error('Error fetching admin config:', error);
+                throw error;
+            }
+        };
+        
+        const appendToAdminConfig = async (rowData) => {
+            try {
+                const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Admin_Config!A:I:append?valueInputOption=RAW&key=${API_KEY}`;
+                const now = new Date().toLocaleDateString();
+                const fullRow = [...rowData, now];
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        values: [fullRow]
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Failed to append to Admin_Config');
+                return await response.json();
+            } catch (error) {
+                console.error('Error appending to admin config:', error);
+                throw error;
+            }
+        };
+        
+        const getEmployeeAssignment = (employees, employeeCode, month, year) => {
+            const applicable = employees.filter(emp => 
+                emp.employeeCode === employeeCode &&
+                (emp.effectiveYear < year || (emp.effectiveYear === year && emp.effectiveMonth <= month))
+            );
+            
+            if (applicable.length === 0) return null;
+            
+            applicable.sort((a, b) => {
+                if (b.effectiveYear !== a.effectiveYear) return b.effectiveYear - a.effectiveYear;
+                return b.effectiveMonth - a.effectiveMonth;
+            });
+            
+            return applicable[0];
+        };
+        
+        const getGoalForOffice = (goals, department, office, goalType, month, year) => {
+            const applicable = goals.filter(goal => 
+                goal.department === department &&
+                goal.office === office &&
+                goal.goalType === goalType &&
+                (goal.effectiveYear < year || (goal.effectiveYear === year && goal.effectiveMonth <= month))
+            );
+            
+            if (applicable.length === 0) return 0;
+            
+            applicable.sort((a, b) => {
+                if (b.effectiveYear !== a.effectiveYear) return b.effectiveYear - a.effectiveYear;
+                return b.effectiveMonth - a.effectiveMonth;
+            });
+            
+            return applicable[0].goalValue || 0;
+        };
+
+        // PART 5: Goal Management Component
+        const GoalManagement = ({ onClose, configData }) => {
+            const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+            const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+            const [goals, setGoals] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [success, setSuccess] = useState('');
+
+            useEffect(() => {
+                const initialGoals = configData.offices.map(office => {
+                    const existingCollection = getGoalForOffice(configData.goals, 'AR Department', office, 'Collection', selectedMonth, selectedYear);
+                    const existingProduction = getGoalForOffice(configData.goals, 'Outbound Department', office, 'Production', selectedMonth, selectedYear);
+                    const existingAppointment = getGoalForOffice(configData.goals, 'Outbound Department', office, 'Appointment', selectedMonth, selectedYear);
+                    const existingCall = getGoalForOffice(configData.goals, 'Outbound Department', office, 'Call', selectedMonth, selectedYear);
+                    const existingVerification = getGoalForOffice(configData.goals, 'Verification Department', office, 'Verification', selectedMonth, selectedYear);
+
+                    return {
+                        office,
+                        collection: existingCollection || '',
+                        production: existingProduction || '',
+                        appointment: existingAppointment || '',
+                        call: existingCall || '',
+                        verification: existingVerification || ''
+                    };
+                });
+                setGoals(initialGoals);
+            }, [selectedMonth, selectedYear, configData]);
+
+            const handleGoalChange = (office, goalType, value) => {
+                setGoals(prev => prev.map(g => 
+                    g.office === office ? { ...g, [goalType]: value } : g
+                ));
+            };
+
+            const handleSave = async () => {
+                setLoading(true);
+                setSuccess('');
+                try {
+                    const departments = {
+                        collection: 'AR Department',
+                        production: 'Outbound Department',
+                        appointment: 'Outbound Department',
+                        call: 'Outbound Department',
+                        verification: 'Verification Department'
+                    };
+
+                    const goalTypes = {
+                        collection: 'Collection',
+                        production: 'Production',
+                        appointment: 'Appointment',
+                        call: 'Call',
+                        verification: 'Verification'
+                    };
+
+                    for (const goal of goals) {
+                        for (const [key, value] of Object.entries(goal)) {
+                            if (key !== 'office' && value && parseFloat(value) > 0) {
+                                const rowData = [
+                                    '',
+                                    departments[key],
+                                    goal.office,
+                                    '',
+                                    goalTypes[key],
+                                    parseFloat(value),
+                                    selectedMonth,
+                                    selectedYear
+                                ];
+                                await appendToAdminConfig(rowData);
+                            }
+                        }
+                    }
+
+                    setSuccess('Goals saved successfully!');
+                    setTimeout(() => {
+                        onClose();
+                    }, 1500);
+                } catch (error) {
+                    console.error('Error saving goals:', error);
+                    alert('Failed to save goals: ' + error.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-8 border border-slate-600 shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-gradient-to-br from-blue-500 to-cyan-600 p-3 rounded-xl">
+                                    <span className="text-2xl">📊</span>
+                                </div>
+                                <h2 className="text-2xl font-bold text-white">Goal Management</h2>
+                            </div>
+                            <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="flex gap-4 mb-6">
+                            <div className="flex-1">
+                                <label className="block text-slate-300 text-sm font-semibold mb-2">Month</label>
+                                <select value={selectedMonth} onChange={(e) => setSelectedMonth(parseInt(e.target.value))} className="w-full bg-slate-700 text-white border border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+                                        <option key={m} value={m}>{new Date(2000, m-1).toLocaleString('default', { month: 'long' })}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex-1">
+                                <label className="block text-slate-300 text-sm font-semibold mb-2">Year</label>
+                                <select value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))} className="w-full bg-slate-700 text-white border border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    {[2024, 2025, 2026].map(y => (
+                                        <option key={y} value={y}>{y}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {success && (
+                            <div className="mb-4 p-4 bg-green-900/50 border border-green-700 rounded-xl text-green-200">
+                                {success}
+                            </div>
+                        )}
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="border-b border-slate-600">
+                                        <th className="text-left py-3 px-4 text-slate-300 font-semibold">Office</th>
+                                        <th className="text-left py-3 px-4 text-slate-300 font-semibold">Collection</th>
+                                        <th className="text-left py-3 px-4 text-slate-300 font-semibold">Production</th>
+                                        <th className="text-left py-3 px-4 text-slate-300 font-semibold">Appointment</th>
+                                        <th className="text-left py-3 px-4 text-slate-300 font-semibold">Call</th>
+                                        <th className="text-left py-3 px-4 text-slate-300 font-semibold">Verification</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {goals.map(goal => (
+                                        <tr key={goal.office} className="border-b border-slate-700 hover:bg-slate-700/30">
+                                            <td className="py-3 px-4 text-white font-medium">{goal.office}</td>
+                                            <td className="py-3 px-4">
+                                                <input
+                                                    type="number"
+                                                    value={goal.collection}
+                                                    onChange={(e) => handleGoalChange(goal.office, 'collection', e.target.value)}
+                                                    className="w-full bg-slate-700 text-white border border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    placeholder="0"
+                                                />
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                <input
+                                                    type="number"
+                                                    value={goal.production}
+                                                    onChange={(e) => handleGoalChange(goal.office, 'production', e.target.value)}
+                                                    className="w-full bg-slate-700 text-white border border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    placeholder="0"
+                                                />
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                <input
+                                                    type="number"
+                                                    value={goal.appointment}
+                                                    onChange={(e) => handleGoalChange(goal.office, 'appointment', e.target.value)}
+                                                    className="w-full bg-slate-700 text-white border border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    placeholder="0"
+                                                />
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                <input
+                                                    type="number"
+                                                    value={goal.call}
+                                                    onChange={(e) => handleGoalChange(goal.office, 'call', e.target.value)}
+                                                    className="w-full bg-slate-700 text-white border border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    placeholder="0"
+                                                />
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                <input
+                                                    type="number"
+                                                    value={goal.verification}
+                                                    onChange={(e) => handleGoalChange(goal.office, 'verification', e.target.value)}
+                                                    className="w-full bg-slate-700 text-white border border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    placeholder="0"
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button onClick={onClose} className="flex-1 px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition-all font-semibold">
+                                Cancel
+                            </button>
+                            <button onClick={handleSave} disabled={loading} className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 disabled:from-gray-600 disabled:to-gray-600 text-white rounded-xl transition-all font-semibold shadow-lg">
+                                {loading ? 'Saving...' : 'Save Goals'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // PART 6: Employee Assignment Component
+        const EmployeeAssignment = ({ onClose, configData }) => {
+            const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+            const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+            const [assignments, setAssignments] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [success, setSuccess] = useState('');
+
+            useEffect(() => {
+                const initialAssignments = configData.employeeCodes.map(empCode => {
+                    const existing = getEmployeeAssignment(configData.employees, empCode, selectedMonth, selectedYear);
+                    return {
+                        employeeCode: empCode,
+                        department: existing?.department || '',
+                        office: existing?.office || '',
+                        state: existing?.state || ''
+                    };
+                });
+                setAssignments(initialAssignments);
+            }, [selectedMonth, selectedYear, configData]);
+
+            const handleAssignmentChange = (empCode, field, value) => {
+                setAssignments(prev => prev.map(a => 
+                    a.employeeCode === empCode ? { ...a, [field]: value } : a
+                ));
+            };
+
+            const handleSave = async () => {
+                setLoading(true);
+                setSuccess('');
+                try {
+                    for (const assignment of assignments) {
+                        if (assignment.department && assignment.office) {
+                            const rowData = [
+                                assignment.employeeCode,
+                                assignment.department,
+                                assignment.office,
+                                assignment.state,
+                                '',
+                                '',
+                                selectedMonth,
+                                selectedYear
+                            ];
+                            await appendToAdminConfig(rowData);
+                        }
+                    }
+
+                    setSuccess('Assignments saved successfully!');
+                    setTimeout(() => {
+                        onClose();
+                    }, 1500);
+                } catch (error) {
+                    console.error('Error saving assignments:', error);
+                    alert('Failed to save assignments: ' + error.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-8 border border-slate-600 shadow-2xl max-w-5xl w-full mx-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-gradient-to-br from-purple-500 to-pink-600 p-3 rounded-xl">
+                                    <span className="text-2xl">👥</span>
+                                </div>
+                                <h2 className="text-2xl font-bold text-white">Employee Assignment</h2>
+                            </div>
+                            <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="flex gap-4 mb-6">
+                            <div className="flex-1">
+                                <label className="block text-slate-300 text-sm font-semibold mb-2">Month</label>
+                                <select value={selectedMonth} onChange={(e) => setSelectedMonth(parseInt(e.target.value))} className="w-full bg-slate-700 text-white border border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+                                        <option key={m} value={m}>{new Date(2000, m-1).toLocaleString('default', { month: 'long' })}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex-1">
+                                <label className="block text-slate-300 text-sm font-semibold mb-2">Year</label>
+                                <select value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))} className="w-full bg-slate-700 text-white border border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    {[2024, 2025, 2026].map(y => (
+                                        <option key={y} value={y}>{y}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {success && (
+                            <div className="mb-4 p-4 bg-green-900/50 border border-green-700 rounded-xl text-green-200">
+                                {success}
+                            </div>
+                        )}
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="border-b border-slate-600">
+                                        <th className="text-left py-3 px-4 text-slate-300 font-semibold">Employee Code</th>
+                                        <th className="text-left py-3 px-4 text-slate-300 font-semibold">Department</th>
+                                        <th className="text-left py-3 px-4 text-slate-300 font-semibold">Office</th>
+                                        <th className="text-left py-3 px-4 text-slate-300 font-semibold">State</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {assignments.map(assignment => (
+                                        <tr key={assignment.employeeCode} className="border-b border-slate-700 hover:bg-slate-700/30">
+                                            <td className="py-3 px-4 text-white font-medium">{assignment.employeeCode}</td>
+                                            <td className="py-3 px-4">
+                                                <select
+                                                    value={assignment.department}
+                                                    onChange={(e) => handleAssignmentChange(assignment.employeeCode, 'department', e.target.value)}
+                                                    className="w-full bg-slate-700 text-white border border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                >
+                                                    <option value="">Select Department</option>
+                                                    <option value="AR Department">AR Department</option>
+                                                    <option value="Outbound Department">Outbound Department</option>
+                                                    <option value="Verification Department">Verification Department</option>
+                                                </select>
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                <select
+                                                    value={assignment.office}
+                                                    onChange={(e) => handleAssignmentChange(assignment.employeeCode, 'office', e.target.value)}
+                                                    className="w-full bg-slate-700 text-white border border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                >
+                                                    <option value="">Select Office</option>
+                                                    {configData.offices.map(office => (
+                                                        <option key={office} value={office}>{office}</option>
+                                                    ))}
+                                                </select>
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                <select
+                                                    value={assignment.state}
+                                                    onChange={(e) => handleAssignmentChange(assignment.employeeCode, 'state', e.target.value)}
+                                                    className="w-full bg-slate-700 text-white border border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                >
+                                                    <option value="">Select State</option>
+                                                    <option value="Alaska">Alaska</option>
+                                                    <option value="Washington">Washington</option>
+                                                    <option value="California">California</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button onClick={onClose} className="flex-1 px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition-all font-semibold">
+                                Cancel
+                            </button>
+                            <button onClick={handleSave} disabled={loading} className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:from-gray-600 disabled:to-gray-600 text-white rounded-xl transition-all font-semibold shadow-lg">
+                                {loading ? 'Saving...' : 'Save Assignments'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // PART 7: Add Employee/Office Components
+        const AddEmployee = ({ onClose }) => {
+            const [employeeCode, setEmployeeCode] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [success, setSuccess] = useState('');
+
+            const handleAdd = async () => {
+                if (!employeeCode.trim()) {
+                    alert('Please enter an employee code');
+                    return;
+                }
+
+                setLoading(true);
+                setSuccess('');
+                try {
+                    const rowData = [
+                        employeeCode.trim().toUpperCase(),
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        new Date().getMonth() + 1,
+                        new Date().getFullYear()
+                    ];
+                    await appendToAdminConfig(rowData);
+                    setSuccess(`Employee ${employeeCode} added successfully!`);
+                    setEmployeeCode('');
+                    setTimeout(() => {
+                        onClose();
+                    }, 1500);
+                } catch (error) {
+                    console.error('Error adding employee:', error);
+                    alert('Failed to add employee: ' + error.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-8 border border-slate-600 shadow-2xl max-w-md w-full mx-4">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-3 rounded-xl">
+                                <span className="text-2xl">➕</span>
+                            </div>
+                            <h2 className="text-2xl font-bold text-white">Add Employee</h2>
+                        </div>
+
+                        {success && (
+                            <div className="mb-4 p-4 bg-green-900/50 border border-green-700 rounded-xl text-green-200">
+                                {success}
+                            </div>
+                        )}
+
+                        <div className="mb-6">
+                            <label className="block text-slate-300 text-sm font-semibold mb-2">Employee Code</label>
+                            <input
+                                type="text"
+                                value={employeeCode}
+                                onChange={(e) => setEmployeeCode(e.target.value)}
+                                className="w-full bg-slate-700 text-white border border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                placeholder="e.g., JD, AB"
+                                autoFocus
+                            />
+                            <p className="text-slate-400 text-xs mt-2">Enter employee initials (will be auto-capitalized)</p>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button onClick={onClose} className="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition-all font-semibold">
+                                Cancel
+                            </button>
+                            <button onClick={handleAdd} disabled={loading} className="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:from-gray-600 disabled:to-gray-600 text-white rounded-xl transition-all font-semibold shadow-lg">
+                                {loading ? 'Adding...' : 'Add Employee'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const AddOffice = ({ onClose }) => {
+            const [officeCode, setOfficeCode] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [success, setSuccess] = useState('');
+
+            const handleAdd = async () => {
+                if (!officeCode.trim()) {
+                    alert('Please enter an office code');
+                    return;
+                }
+
+                setLoading(true);
+                setSuccess('');
+                try {
+                    const rowData = [
+                        '',
+                        'AR Department',
+                        officeCode.trim().toUpperCase(),
+                        '',
+                        'Collection',
+                        0,
+                        new Date().getMonth() + 1,
+                        new Date().getFullYear()
+                    ];
+                    await appendToAdminConfig(rowData);
+                    setSuccess(`Office ${officeCode} added successfully!`);
+                    setOfficeCode('');
+                    setTimeout(() => {
+                        onClose();
+                    }, 1500);
+                } catch (error) {
+                    console.error('Error adding office:', error);
+                    alert('Failed to add office: ' + error.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-8 border border-slate-600 shadow-2xl max-w-md w-full mx-4">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="bg-gradient-to-br from-orange-500 to-amber-600 p-3 rounded-xl">
+                                <span className="text-2xl">🏢</span>
+                            </div>
+                            <h2 className="text-2xl font-bold text-white">Add Office</h2>
+                        </div>
+
+                        {success && (
+                            <div className="mb-4 p-4 bg-green-900/50 border border-green-700 rounded-xl text-green-200">
+                                {success}
+                            </div>
+                        )}
+
+                        <div className="mb-6">
+                            <label className="block text-slate-300 text-sm font-semibold mb-2">Office Code</label>
+                            <input
+                                type="text"
+                                value={officeCode}
+                                onChange={(e) => setOfficeCode(e.target.value)}
+                                className="w-full bg-slate-700 text-white border border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                placeholder="e.g., WA-AR, CA-CH"
+                                autoFocus
+                            />
+                            <p className="text-slate-400 text-xs mt-2">Enter office code (will be auto-capitalized)</p>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button onClick={onClose} className="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition-all font-semibold">
+                                Cancel
+                            </button>
+                            <button onClick={handleAdd} disabled={loading} className="flex-1 px-4 py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 disabled:from-gray-600 disabled:to-gray-600 text-white rounded-xl transition-all font-semibold shadow-lg">
+                                {loading ? 'Adding...' : 'Add Office'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // PART 8: Performance Chart Component (from original dashboard)
+        const PerformanceChart = ({ performanceData }) => {
             const chartRef = useRef(null);
             const chartInstance = useRef(null);
 
@@ -355,174 +1011,59 @@
             return <div className="h-80"><canvas ref={chartRef}></canvas></div>;
         };
 
-        // PART 3/5: MAIN COMPONENT - STATE AND DATA FETCHING
-        const PerformanceTracker = () => {
+        // PART 9: Main KPI Dashboard (integrated with admin)
+        const App = () => {
+            // Admin state
+            const [showPasswordModal, setShowPasswordModal] = useState(false);
+            const [showAdminMenu, setShowAdminMenu] = useState(false);
+            const [adminView, setAdminView] = useState(null);
+            const [configData, setConfigData] = useState({ employees: [], goals: [], offices: [], employeeCodes: [] });
+            const [loadingConfig, setLoadingConfig] = useState(false);
+
+            // Dashboard state (from original)
             const [data, setData] = useState([]);
-            const [insPmtData, setInsPmtData] = useState([]);
-            const [productionData, setProductionData] = useState([]);
-            const [appointmentData, setAppointmentData] = useState([]);
+            const [uniqueNames, setUniqueNames] = useState([]);
             const [selectedName, setSelectedName] = useState('');
             const [startDate, setStartDate] = useState('');
             const [endDate, setEndDate] = useState('');
-            const [uniqueNames, setUniqueNames] = useState([]);
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState('');
+            const [performance, setPerformance] = useState(null);
 
-            const fetchDataFromSheet = async () => {
+            // Fetch dashboard data on mount
+            useEffect(() => {
+                fetchDashboardData();
+            }, []);
+
+            const fetchDashboardData = async () => {
                 setLoading(true);
                 setError('');
                 try {
+                    // Load admin config first
+                    const config = await fetchAdminConfig();
+                    setConfigData(config);
+
+                    // Load main data sheet
                     const url1 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Data!A:I?key=${API_KEY}`;
                     const response1 = await fetch(url1);
-                    if (!response1.ok) throw new Error(`Failed to fetch Data sheet: ${response1.statusText}`);
+                    if (!response1.ok) throw new Error('Failed to fetch Data sheet');
                     const result1 = await response1.json();
                     const rows1 = result1.values || [];
 
-                    const url2 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Ins Pmt!A:G?key=${API_KEY}`;
-                    const response2 = await fetch(url2);
-                    if (!response2.ok) throw new Error(`Failed to fetch Ins Pmt sheet: ${response2.statusText}`);
-                    const result2 = await response2.json();
-                    const rows2 = result2.values || [];
-
-                    const collectionResults = [];
-                    for (const sheetName of COLLECTION_SHEETS) {
-                        try {
-                            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_2}/values/${sheetName}!A:F?key=${API_KEY}`;
-                            const response = await fetch(url);
-                            if (response.ok) {
-                                const result = await response.json();
-                                collectionResults.push({ sheetName, rows: result.values || [] });
-                            } else {
-                                collectionResults.push({ sheetName, rows: [] });
-                            }
-                            await new Promise(resolve => setTimeout(resolve, 100));
-                        } catch (err) {
-                            console.warn(`Failed to fetch ${sheetName}:`, err);
-                            collectionResults.push({ sheetName, rows: [] });
-                        }
-                    }
-
-                    const productionResults = [];
-                    for (const sheetName of COLLECTION_SHEETS) {
-                        try {
-                            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values/${sheetName}!A:C?key=${API_KEY}`;
-                            const response = await fetch(url);
-                            if (response.ok) {
-                                const result = await response.json();
-                                productionResults.push({ sheetName, rows: result.values || [] });
-                            } else {
-                                productionResults.push({ sheetName, rows: [] });
-                            }
-                            await new Promise(resolve => setTimeout(resolve, 100));
-                        } catch (err) {
-                            console.warn(`Failed to fetch production from ${sheetName}:`, err);
-                            productionResults.push({ sheetName, rows: [] });
-                        }
-                    }
-
-                    const appointmentResults = [];
-                    for (const sheetName of COLLECTION_SHEETS) {
-                        try {
-                            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values/${sheetName}!A:D?key=${API_KEY}`;
-                            const response = await fetch(url);
-                            if (response.ok) {
-                                const result = await response.json();
-                                appointmentResults.push({ sheetName, rows: result.values || [] });
-                            } else {
-                                appointmentResults.push({ sheetName, rows: [] });
-                            }
-                            await new Promise(resolve => setTimeout(resolve, 100));
-                        } catch (err) {
-                            console.warn(`Failed to fetch appointments from ${sheetName}:`, err);
-                            appointmentResults.push({ sheetName, rows: [] });
-                        }
-                    }
-
                     const parsedData = rows1.slice(1).map(row => ({
-                        date: row[0] || '', task: row[3] || '', amount: row[4] || '',
-                        collectionAmount: row[5] || '', name: row[8] || '', office: row[2] || '', source: 'Data'
-                    })).filter(row => {
-                        if (!row.name || !row.name.trim() || !row.task || !row.task.trim() || !row.date || !row.date.trim()) return false;
-                        let cleanName = row.name.trim().replace(/^["']|["']$/g, '');
-                        return allAllowedNames.includes(cleanName);
-                    });
-
-                    const parsedInsPmt = rows2.slice(1).map(row => ({
-                        date: row[2] || '', amount: row[4] || '', name: row[6] || '', source: 'InsPmt'
-                    })).filter(row => {
-                        if (!row.name || !row.name.trim() || !row.date || !row.date.trim() || !row.amount || !row.amount.toString().trim()) return false;
-                        let cleanName = row.name.trim().replace(/^["']|["']$/g, '');
-                        return allAllowedNames.includes(cleanName);
-                    });
-
-                    const parsedCollectionData = [];
-                    collectionResults.forEach(({ sheetName, rows }) => {
-                        if (rows.length > 1) {
-                            rows.slice(1).forEach(row => {
-                                if (row.length >= 6) {
-                                    const rawName = row[5] || '';
-                                    const cleanName = normalizeEmployeeName(rawName);
-                                    const dateValue = row[4] || '';
-                                    const amountValue = row[2] || '';
-                                    if (cleanName && dateValue && amountValue && allAllowedNames.includes(cleanName)) {
-                                        parsedCollectionData.push({ date: dateValue, amount: amountValue, name: cleanName, source: `Collection-${sheetName}` });
-                                    }
-                                }
-                            });
-                        }
-                    });
-
-                    const parsedProductionData = [];
-                    productionResults.forEach(({ sheetName, rows }) => {
-                        if (rows.length > 1) {
-                            rows.slice(1).forEach(row => {
-                                if (row.length >= 3) {
-                                    const rawName = row[2] || '';
-                                    const cleanName = normalizeEmployeeName(rawName);
-                                    const dateValue = row[0] || '';
-                                    const amountValue = row[1] || '';
-                                    if (cleanName && dateValue && amountValue && allAllowedNames.includes(cleanName)) {
-                                        parsedProductionData.push({ date: dateValue, amount: amountValue, name: cleanName, office: sheetName, source: `Production-${sheetName}` });
-                                    }
-                                }
-                            });
-                        }
-                    });
-
-                    const parsedAppointmentData = [];
-                    appointmentResults.forEach(({ sheetName, rows }) => {
-                        if (rows.length > 1) {
-                            rows.slice(1).forEach(row => {
-                                if (row.length >= 4) {
-                                    const rawName = row[2] || '';
-                                    const cleanName = normalizeEmployeeName(rawName);
-                                    const dateValue = row[0] || '';
-                                    const appointmentCount = row[3] || '';
-                                    if (cleanName && dateValue && appointmentCount && allAllowedNames.includes(cleanName)) {
-                                        const count = parseNumericValue(appointmentCount);
-                                        if (count > 0) {
-                                            parsedAppointmentData.push({ date: dateValue, name: cleanName, count: count, office: sheetName, source: `Appointment-${sheetName}` });
-                                        }
-                                    }
-                                }
-                            });
-                        }
-                    });
+                        date: row[0] || '',
+                        task: row[3] || '',
+                        amount: row[4] || '',
+                        collectionAmount: row[5] || '',
+                        name: row[8] || ''
+                    })).filter(row => row.name && row.task && row.date);
 
                     setData(parsedData);
-                    const combinedInsPmt = [...parsedInsPmt, ...parsedCollectionData];
-                    setInsPmtData(combinedInsPmt);
-                    setProductionData(parsedProductionData);
-                    setAppointmentData(parsedAppointmentData);
 
-                    const allNames = [
-                        ...parsedData.map(row => row.name.trim().replace(/^["']|["']$/g, '')),
-                        ...combinedInsPmt.map(row => row.name.trim().replace(/^["']|["']$/g, '')),
-                        ...parsedProductionData.map(row => row.name.trim().replace(/^["']|["']$/g, '')),
-                        ...parsedAppointmentData.map(row => row.name.trim().replace(/^["']|["']$/g, ''))
-                    ];
-                    const names = [...new Set(allNames)].filter(n => allAllowedNames.includes(n)).sort();
+                    // Extract unique employee names from config
+                    const names = config.employeeCodes.sort();
                     setUniqueNames(names);
+
                 } catch (err) {
                     console.error('Error fetching data:', err);
                     setError(err.message);
@@ -531,738 +1072,158 @@
                 }
             };
 
-            useEffect(() => { fetchDataFromSheet(); }, []);
+            // Calculate performance whenever selection changes
+            useEffect(() => {
+                if (selectedName && data.length > 0) {
+                    calculatePerformance();
+                }
+            }, [selectedName, startDate, endDate, data, configData]);
 
-            // PART 4/5: CALCULATION LOGIC
             const calculatePerformance = () => {
-                if (!selectedName) return null;
+                if (!selectedName) {
+                    setPerformance(null);
+                    return;
+                }
 
                 try {
-                    let filtered = data.filter(row => {
-                        let rowName = row.name.trim().replace(/^["']|["']$/g, '');
-                        return rowName === selectedName;
-                    });
+                    // Get employee's current assignment
+                    const today = new Date();
+                    const currentMonth = today.getMonth() + 1;
+                    const currentYear = today.getFullYear();
                     
-                    let filteredInsPmt = insPmtData.filter(row => {
-                        let rowName = row.name.trim().replace(/^["']|["']$/g, '');
-                        return rowName === selectedName;
-                    });
+                    const assignment = getEmployeeAssignment(configData.employees, selectedName, currentMonth, currentYear);
+                    
+                    if (!assignment) {
+                        setError(`No assignment found for ${selectedName}`);
+                        setPerformance(null);
+                        return;
+                    }
 
-                let numberOfDays = 1;
-                if (startDate && endDate) {
-                    const start = new Date(startDate);
-                    const end = new Date(endDate);
-                    numberOfDays = Math.max(1, countWorkingDays(start, end));
-                } else if (startDate || endDate) {
-                    numberOfDays = 1;
-                } else {
-                    const uniqueDates = new Set();
+                    // Filter data for this employee
+                    let filtered = data.filter(row => row.name.trim() === selectedName);
+
+                    // Apply date filters
+                    if (startDate) {
+                        const startDateObj = new Date(startDate);
+                        filtered = filtered.filter(row => {
+                            const rowDate = parseDate(row.date);
+                            return rowDate && rowDate >= startDateObj;
+                        });
+                    }
+
+                    if (endDate) {
+                        const endDateObj = new Date(endDate);
+                        filtered = filtered.filter(row => {
+                            const rowDate = parseDate(row.date);
+                            return rowDate && rowDate <= endDateObj;
+                        });
+                    }
+
+                    // Calculate working days
+                    let numberOfDays = 1;
+                    if (startDate && endDate) {
+                        numberOfDays = Math.max(1, countWorkingDays(new Date(startDate), new Date(endDate)));
+                    }
+
+                    // Process tasks and calculate totals
+                    const taskCounts = {};
+                    let totalCollectionAmount = 0;
+                    let totalTasks = 0;
+
                     filtered.forEach(row => {
-                        const rowDate = parseDate(row.date);
-                        if (rowDate) {
-                            const shiftedDate = shiftWeekendToWeekday(rowDate);
-                            if (shiftedDate) uniqueDates.add(shiftedDate.toDateString());
-                        }
-                    });
-                    filteredInsPmt.forEach(row => {
-                        const rowDate = parseDate(row.date);
-                        if (rowDate) {
-                            const shiftedDate = shiftWeekendToWeekday(rowDate);
-                            if (shiftedDate) uniqueDates.add(shiftedDate.toDateString());
-                        }
-                    });
-                    numberOfDays = Math.max(1, uniqueDates.size);
-                }
+                        const taskName = row.task.trim();
+                        const standardTaskName = findTaskName(taskName);
+                        const amountValue = parseNumericValue(row.amount);
 
-                // Filter by date range
-                if (startDate) {
-                    const parts = startDate.split('-');
-                    const startDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
-                    filtered = filtered.filter(row => {
-                        const rowDate = parseDate(row.date);
-                        if (!rowDate) return false;
-                        const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                        return rowDateOnly >= startDateObj;
-                    });
-                    filteredInsPmt = filteredInsPmt.filter(row => {
-                        const rowDate = parseDate(row.date);
-                        if (!rowDate) return false;
-                        const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                        return rowDateOnly >= startDateObj;
-                    });
-                }
-
-                if (endDate) {
-                    const parts = endDate.split('-');
-                    const endDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
-                    filtered = filtered.filter(row => {
-                        const rowDate = parseDate(row.date);
-                        if (!rowDate) return false;
-                        const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                        return rowDateOnly <= endDateObj;
-                    });
-                    filteredInsPmt = filteredInsPmt.filter(row => {
-                        const rowDate = parseDate(row.date);
-                        if (!rowDate) return false;
-                        const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                        return rowDateOnly <= endDateObj;
-                    });
-                }
-
-                const taskCounts = {};
-                const unlistedTasks = {};
-                let totalCollectionAmount = 0;
-                let totalProductionAmount = 0;
-                let totalTasks = 0;
-                let totalCompletedAppointments = 0;
-                let totalAppointments = 0;
-                let totalCalls = 0;
-                
-                const userDepartment = getDepartment(selectedName);
-                const userState = getEmployeeState(selectedName);
-
-                // Process main data sheet tasks
-                filtered.forEach(row => {
-                    const taskName = row.task.trim();
-                    const taskLower = taskName.toLowerCase();
-                    const standardTaskName = findTaskName(taskName);
-                    
-                    // Use unified parser for all amounts
-                    const amountValue = parseNumericValue(row.amount);
-                    
-                    if (amountValue > 0) {
-                        if (standardTaskName) {
+                        if (standardTaskName && amountValue > 0) {
                             taskCounts[standardTaskName] = (taskCounts[standardTaskName] || 0) + amountValue;
                             totalTasks += amountValue;
-                            // Process appointment data from Sheet 3 Column D
-                    let filteredAppointments = appointmentData.filter(row => {
-                        let rowName = row.name.trim().replace(/^["']|["']$/g, '');
-                        return rowName === selectedName;
-                    });
-
-                    if (startDate) {
-                        const parts = startDate.split('-');
-                        const startDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
-                        filteredAppointments = filteredAppointments.filter(row => {
-                            const rowDate = parseDate(row.date);
-                            if (!rowDate) return false;
-                            const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                            return rowDateOnly >= startDateObj;
-                        });
-                    }
-
-                    if (endDate) {
-                        const parts = endDate.split('-');
-                        const endDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
-                        filteredAppointments = filteredAppointments.filter(row => {
-                            const rowDate = parseDate(row.date);
-                            if (!rowDate) return false;
-                            const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                            return rowDateOnly <= endDateObj;
-                        });
-                    }
-
-                    // Sum completed appointments from Sheet 3 Column D
-                    totalCompletedAppointments = filteredAppointments.reduce((sum, row) => sum + (row.count || 0), 0);
-                    
-                    console.log('Filtered Appointments:', filteredAppointments);
-                    console.log('Total Completed Appointments:', totalCompletedAppointments);
-                } else {
-                            unlistedTasks[taskName] = (unlistedTasks[taskName] || 0) + amountValue;
-                            totalTasks += amountValue;
                         }
-                    }
-                    
-                    // Outbound Department: Track appointments and calls
-                    if (userDepartment === 'Outbound Department') {
-                        if (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt' || 
-                            standardTaskName === 'Inbound Text Appt' || standardTaskName === 'Outbound Text Appt') {
-                            totalAppointments += amountValue > 0 ? amountValue : 1;
-                        }
-                        if (standardTaskName === 'Outbound Call' || standardTaskName === 'Inbound Call') {
-                            totalCalls += amountValue > 0 ? amountValue : 1;
-                        }
-                    }
-                    
-                    // AR Department: Track collection from collectionAmount column
-                    if (userDepartment === 'AR Department' && taskLower === 'total balance collected') {
-                        const collectionValue = parseNumericValue(row.collectionAmount);
-                        if (collectionValue > 0) {
-                            totalCollectionAmount += collectionValue;
-                        }
-                    }
-                });
 
-                // Process production data for Outbound Department
-                if (userDepartment === 'Outbound Department') {
-                    let filteredProduction = productionData.filter(row => {
-                        let rowName = row.name.trim().replace(/^["']|["']$/g, '');
-                        return rowName === selectedName;
-                    });
-                    
-                    if (startDate) {
-                        const parts = startDate.split('-');
-                        const startDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
-                        filteredProduction = filteredProduction.filter(row => {
-                            const rowDate = parseDate(row.date);
-                            if (!rowDate) return false;
-                            const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                            return rowDateOnly >= startDateObj;
-                        });
-                    }
-
-                    if (endDate) {
-                        const parts = endDate.split('-');
-                        const endDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
-                        filteredProduction = filteredProduction.filter(row => {
-                            const rowDate = parseDate(row.date);
-                            if (!rowDate) return false;
-                            const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                            return rowDateOnly <= endDateObj;
-                        });
-                    }
-
-                    // Sum production amounts using unified parser
-                    filteredProduction.forEach(row => {
-                        const amount = parseNumericValue(row.amount);
-                        if (amount > 0) {
-                            totalProductionAmount += amount;
+                        // AR Department: Track collection
+                        if (assignment.department === 'AR Department' && taskName.toLowerCase() === 'total balance collected') {
+                            const collectionValue = parseNumericValue(row.collectionAmount);
+                            if (collectionValue > 0) {
+                                totalCollectionAmount += collectionValue;
+                            }
                         }
                     });
 
-                    // Process appointment data
-                    let filteredAppointments = appointmentData.filter(row => {
-                        let rowName = row.name.trim().replace(/^["']|["']$/g, '');
-                        return rowName === selectedName;
+                    // Get goals for this employee's office
+                    const collectionGoal = getGoalForOffice(configData.goals, assignment.department, assignment.office, 'Collection', currentMonth, currentYear) * numberOfDays;
+                    const productionGoal = getGoalForOffice(configData.goals, assignment.department, assignment.office, 'Production', currentMonth, currentYear) * numberOfDays;
+                    const appointmentGoal = getGoalForOffice(configData.goals, assignment.department, assignment.office, 'Appointment', currentMonth, currentYear) * numberOfDays;
+                    const callGoal = getGoalForOffice(configData.goals, assignment.department, assignment.office, 'Call', currentMonth, currentYear) * numberOfDays;
+                    const verificationGoal = getGoalForOffice(configData.goals, assignment.department, assignment.office, 'Verification', currentMonth, currentYear) * numberOfDays;
+
+                    // Calculate overall performance based on department
+                    let overallPerformance = 0;
+                    if (assignment.department === 'AR Department' && collectionGoal > 0) {
+                        overallPerformance = Math.min(100, (totalCollectionAmount / collectionGoal) * 100);
+                    }
+
+                    const sortedTasks = Object.entries(taskCounts).sort((a, b) => b[1] - a[1]);
+                    const perfColor = getPerformanceColor(overallPerformance);
+
+                    setPerformance({
+                        taskCounts: sortedTasks,
+                        totalCollectionAmount: totalCollectionAmount.toFixed(2),
+                        collectionGoal: collectionGoal.toFixed(2),
+                        overallPerformance: Math.round(overallPerformance),
+                        totalTasks: Math.round(totalTasks),
+                        department: assignment.department,
+                        office: assignment.office,
+                        state: assignment.state,
+                        numberOfDays,
+                        perfColor
                     });
 
-                    if (startDate) {
-                        const parts = startDate.split('-');
-                        const startDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
-                        filteredAppointments = filteredAppointments.filter(row => {
-                            const rowDate = parseDate(row.date);
-                            if (!rowDate) return false;
-                            const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                            return rowDateOnly >= startDateObj;
-                        });
-                    }
-
-                    if (endDate) {
-                        const parts = endDate.split('-');
-                        const endDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
-                        filteredAppointments = filteredAppointments.filter(row => {
-                            const rowDate = parseDate(row.date);
-                            if (!rowDate) return false;
-                            const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                            return rowDateOnly <= endDateObj;
-                        });
-                    }
-
-                    // Sum completed appointments - count is already parsed
-                    totalCompletedAppointments = filteredAppointments.reduce((sum, row) => sum + (row.count || 0), 0);
+                } catch (error) {
+                    console.error('Error calculating performance:', error);
+                    setError(`Calculation error: ${error.message}`);
+                    setPerformance(null);
                 }
+            };
 
-                // Add Ins Pmt / Collection sheet amounts to AR total
-                if (userDepartment === 'AR Department') {
-                    filteredInsPmt.forEach(row => {
-                        const amount = parseNumericValue(row.amount);
-                        if (amount > 0) {
-                            totalCollectionAmount += amount;
-                        }
-                    });
+            // Admin handlers
+            const handleAdminClick = () => {
+                setShowPasswordModal(true);
+            };
+
+            const handlePasswordSuccess = async () => {
+                setShowPasswordModal(false);
+                setLoadingConfig(true);
+                try {
+                    const data = await fetchAdminConfig();
+                    setConfigData(data);
+                    setShowAdminMenu(true);
+                } catch (error) {
+                    alert('Failed to load configuration: ' + error.message);
+                } finally {
+                    setLoadingConfig(false);
                 }
+            };
 
-                // Calculate state totals for percentage calculations
-                let stateCollectionTotal = 0, stateProductionTotal = 0, stateAppointmentTotal = 0, stateVerificationTotal = 0;
-                const stateTaskTotals = {};
-                const employeesInState = allAllowedNames.filter(name => getEmployeeState(name) === userState);
+            const handleAdminMenuSelect = (option) => {
+                setShowAdminMenu(false);
+                setAdminView(option);
+            };
 
-                employeesInState.forEach(empName => {
-                    let empFiltered = data.filter(row => {
-                        let rowName = row.name.trim().replace(/^["']|["']$/g, '');
-                        return rowName === empName;
-                    });
-                    let empFilteredInsPmt = insPmtData.filter(row => {
-                        let rowName = row.name.trim().replace(/^["']|["']$/g, '');
-                        return rowName === empName;
-                    });
-
-                    // Apply date filters to state totals
-                    if (startDate) {
-                        const parts = startDate.split('-');
-                        const startDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
-                        empFiltered = empFiltered.filter(row => {
-                            const rowDate = parseDate(row.date);
-                            if (!rowDate) return false;
-                            const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                            return rowDateOnly >= startDateObj;
-                        });
-                        empFilteredInsPmt = empFilteredInsPmt.filter(row => {
-                            const rowDate = parseDate(row.date);
-                            if (!rowDate) return false;
-                            const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                            return rowDateOnly >= startDateObj;
-                        });
-                    }
-
-                    if (endDate) {
-                        const parts = endDate.split('-');
-                        const endDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
-                        empFiltered = empFiltered.filter(row => {
-                            const rowDate = parseDate(row.date);
-                            if (!rowDate) return false;
-                            const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                            return rowDateOnly <= endDateObj;
-                        });
-                        empFilteredInsPmt = empFilteredInsPmt.filter(row => {
-                            const rowDate = parseDate(row.date);
-                            if (!rowDate) return false;
-                            const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                            return rowDateOnly <= endDateObj;
-                        });
-                    }
-
-                    const empDept = getDepartment(empName);
-                    
-                    // Sum AR collections for state
-                    if (empDept === 'AR Department') {
-                        empFiltered.forEach(row => {
-                            const taskLower = row.task.trim().toLowerCase();
-                            if (taskLower === 'total balance collected') {
-                                const amount = parseNumericValue(row.collectionAmount);
-                                if (amount > 0) stateCollectionTotal += amount;
-                            }
-                        });
-                        empFilteredInsPmt.forEach(row => {
-                            const amount = parseNumericValue(row.amount);
-                            if (amount > 0) stateCollectionTotal += amount;
-                        });
-                    }
-
-                    // Sum Outbound production and appointments for state
-                    if (empDept === 'Outbound Department') {
-                        let empFilteredProduction = productionData.filter(row => {
-                            let rowName = row.name.trim().replace(/^["']|["']$/g, '');
-                            return rowName === empName;
-                        });
-
-                        if (startDate) {
-                            const parts = startDate.split('-');
-                            const startDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
-                            empFilteredProduction = empFilteredProduction.filter(row => {
-                                const rowDate = parseDate(row.date);
-                                if (!rowDate) return false;
-                                const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                                return rowDateOnly >= startDateObj;
-                            });
-                        }
-
-                        if (endDate) {
-                            const parts = endDate.split('-');
-                            const endDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
-                            empFilteredProduction = empFilteredProduction.filter(row => {
-                                const rowDate = parseDate(row.date);
-                                if (!rowDate) return false;
-                                const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                                return rowDateOnly <= endDateObj;
-                            });
-                        }
-
-                        empFilteredProduction.forEach(row => {
-                            const amount = parseNumericValue(row.amount);
-                            if (amount > 0) stateProductionTotal += amount;
-                        });
-
-                        let empFilteredAppointments = appointmentData.filter(row => {
-                            let rowName = row.name.trim().replace(/^["']|["']$/g, '');
-                            return rowName === empName;
-                        });
-
-                        if (startDate) {
-                            const parts = startDate.split('-');
-                            const startDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
-                            empFilteredAppointments = empFilteredAppointments.filter(row => {
-                                const rowDate = parseDate(row.date);
-                                if (!rowDate) return false;
-                                const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                                return rowDateOnly >= startDateObj;
-                            });
-                        }
-
-                        if (endDate) {
-                            const parts = endDate.split('-');
-                            const endDateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0, 0);
-                            empFilteredAppointments = empFilteredAppointments.filter(row => {
-                                const rowDate = parseDate(row.date);
-                                if (!rowDate) return false;
-                                const rowDateOnly = new Date(rowDate.getFullYear(), rowDate.getMonth(), rowDate.getDate(), 12, 0, 0, 0);
-                                return rowDateOnly <= endDateObj;
-                            });
-                        }
-
-                        stateAppointmentTotal += empFilteredAppointments.reduce((sum, row) => sum + (row.count || 0), 0);
-                    }
-
-                    // Sum Verification counts for state
-                    if (empDept === 'Verification Department') {
-                        empFiltered.forEach(row => {
-                            const standardTaskName = findTaskName(row.task.trim());
-                            if (standardTaskName === 'Verification' || 
-                                standardTaskName === 'Verification (M)' || 
-                                standardTaskName === 'Verification (P)') {
-                                const amountValue = parseNumericValue(row.amount);
-                                if (amountValue > 0) {
-                                    stateVerificationTotal += amountValue;
-                                }
-                            }
-                        });
-                    }
-
-                    // Sum all task counts for state percentages
-                    empFiltered.forEach(row => {
-                        const standardTaskName = findTaskName(row.task.trim());
-                        if (standardTaskName) {
-                            const amountValue = parseNumericValue(row.amount);
-                            if (amountValue > 0) {
-                                stateTaskTotals[standardTaskName] = (stateTaskTotals[standardTaskName] || 0) + amountValue;
-                            }
-                        }
-                    });
-                });
-
-                // Calculate percentages relative to state
-                const collectionPercentage = stateCollectionTotal > 0 ? (totalCollectionAmount / stateCollectionTotal) * 100 : 0;
-                const productionPercentage = stateProductionTotal > 0 ? (totalProductionAmount / stateProductionTotal) * 100 : 0;
-                const appointmentPercentage = stateAppointmentTotal > 0 ? (totalCompletedAppointments / stateAppointmentTotal) * 100 : 0;
-                const userVerificationCount = (taskCounts['Verification'] || 0) + 
-                              (taskCounts['Verification (M)'] || 0) + 
-                              (taskCounts['Verification (P)'] || 0);
-                const verificationPercentage = stateVerificationTotal > 0 ? (userVerificationCount / stateVerificationTotal) * 100 : 0;
-
-                const taskPercentages = {};
-                Object.keys(taskCounts).forEach(taskName => {
-                    const stateTotal = stateTaskTotals[taskName] || 0;
-                    taskPercentages[taskName] = stateTotal > 0 ? (taskCounts[taskName] / stateTotal) * 100 : 0;
-                });
-
-                const sortedTasks = Object.entries(taskCounts).sort((a, b) => b[1] - a[1]);
-                const sortedUnlistedTasks = Object.entries(unlistedTasks).sort((a, b) => b[1] - a[1]);
-
-                // Calculate overall performance based on department
-                let overallPerformance = 0;
-                if (userDepartment === 'Outbound Department') {
-                    const appointmentGoal = 20 * numberOfDays;
-                    const callGoal = 100 * numberOfDays;
-                    const productionGoal = getEmployeeGoal(selectedName, 'production') * numberOfDays;
-                    const appointmentPerf = appointmentGoal > 0 ? (totalAppointments / appointmentGoal) * 100 : 0;
-                    const callPerf = callGoal > 0 ? (totalCalls / callGoal) * 100 : 0;
-                    const productionPerf = productionGoal > 0 ? (totalProductionAmount / productionGoal) * 100 : 0;
-                    overallPerformance = Math.min(100, ((appointmentPerf + callPerf + productionPerf) / 3));
-                } else if (userDepartment === 'AR Department') {
-                    const collectionGoal = getEmployeeGoal(selectedName, 'collection') * numberOfDays;
-                    const collectionPerf = collectionGoal > 0 ? (totalCollectionAmount / collectionGoal) * 100 : 0;
-                    overallPerformance = Math.min(100, collectionPerf);
-                } else if (userDepartment === 'Verification Department') {
-                    if (mixedVerificationEmployees[selectedName]) {
-                        const verificationGoal = getEmployeeGoal(selectedName, 'verification') * numberOfDays;
-                        const verificationCount = (taskCounts['Verification'] || 0) + 
-                                                 (taskCounts['Verification (M)'] || 0) + 
-                                                 (taskCounts['Verification (P)'] || 0);
-                        const verificationPerf = verificationGoal > 0 ? (verificationCount / verificationGoal) * 100 : 0;
-                        overallPerformance = Math.min(100, verificationPerf);
-                    } else {
-                        const verificationGoal = getEmployeeGoal(selectedName, 'verification') * numberOfDays;
-                        const verificationCount = (taskCounts['Verification'] || 0) + 
-                                                 (taskCounts['Verification (M)'] || 0) + 
-                                                 (taskCounts['Verification (P)'] || 0);
-                        const verificationPerf = verificationGoal > 0 ? (verificationCount / verificationGoal) * 100 : 0;
-                        overallPerformance = Math.min(100, verificationPerf);
-                    }
+            const handleCloseAdminView = async () => {
+                setAdminView(null);
+                try {
+                    const data = await fetchAdminConfig();
+                    setConfigData(data);
+                    await fetchDashboardData();
+                } catch (error) {
+                    console.error('Failed to refresh config:', error);
                 }
+            };
 
-                // PART 5/5: PERFORMANCE CHART DATA GENERATION
-                let performanceChartData = [];
-                let dateRangeType = 'daily';
-
-                if (startDate && endDate) {
-                    const start = new Date(startDate);
-                    const end = new Date(endDate);
-                    const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-
-                    if (daysDiff <= 7) {
-                        dateRangeType = 'daily';
-                        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                            const dayData = filtered.filter(row => {
-                                const rowDate = parseDate(row.date);
-                                return rowDate && rowDate.toDateString() === d.toDateString();
-                            });
-
-                            let dayPerformance = 0;
-                            if (userDepartment === 'Outbound Department') {
-                                let dayAppointments = 0, dayCalls = 0, dayProduction = 0;
-                                dayData.forEach(row => {
-                                    const standardTaskName = findTaskName(row.task.trim());
-                                    const amountValue = parseNumericValue(row.amount);
-                                    if (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt') dayAppointments += amountValue;
-                                    if (standardTaskName === 'Outbound Call') dayCalls += amountValue;
-                                });
-                                const dayProductionData = productionData.filter(row => {
-                                    const rowName = row.name.trim().replace(/^["']|["']$/g, '');
-                                    const rowDate = parseDate(row.date);
-                                    return rowName === selectedName && rowDate && rowDate.toDateString() === d.toDateString();
-                                });
-                                dayProduction = dayProductionData.reduce((sum, row) => {
-                                    const amount = parseNumericValue(row.amount);
-                                    return sum + amount;
-                                }, 0);
-                                const appointmentPerf = (dayAppointments / 20) * 100;
-                                const callPerf = (dayCalls / 100) * 100;
-                                const productionGoalDaily = getEmployeeGoal(selectedName, 'production');
-                                const productionPerf = productionGoalDaily > 0 ? (dayProduction / productionGoalDaily) * 100 : 0;
-                                dayPerformance = Math.min(100, ((appointmentPerf + callPerf + productionPerf) / 3));
-                            } else if (userDepartment === 'AR Department') {
-                                let dayCollection = 0;
-                                dayData.forEach(row => {
-                                    const taskLower = row.task.trim().toLowerCase();
-                                    if (taskLower === 'total balance collected') {
-                                        const amount = parseNumericValue(row.collectionAmount);
-                                        if (amount > 0) dayCollection += amount;
-                                    }
-                                });
-                                const dayInsPmtData = filteredInsPmt.filter(row => {
-                                    const rowDate = parseDate(row.date);
-                                    return rowDate && rowDate.toDateString() === d.toDateString();
-                                });
-                                dayInsPmtData.forEach(row => {
-                                    const amount = parseNumericValue(row.amount);
-                                    if (amount > 0) dayCollection += amount;
-                                });
-                                const collectionGoalDaily = getEmployeeGoal(selectedName, 'collection');
-                                dayPerformance = collectionGoalDaily > 0 ? Math.min(100, (dayCollection / collectionGoalDaily) * 100) : 0;
-                            } else if (userDepartment === 'Verification Department') {
-                                let dayVerifications = 0;
-                                dayData.forEach(row => {
-                                    const standardTaskName = findTaskName(row.task.trim());
-                                    if (standardTaskName === 'Verification' || 
-                                        standardTaskName === 'Verification (M)' || 
-                                        standardTaskName === 'Verification (P)') {
-                                        const amountValue = parseNumericValue(row.amount);
-                                        if (amountValue > 0) dayVerifications += amountValue;
-                                    }
-                                });
-                                const verificationGoalDaily = getEmployeeGoal(selectedName, 'verification');
-                                dayPerformance = verificationGoalDaily > 0 ? Math.min(100, (dayVerifications / verificationGoalDaily) * 100) : 0;
-                            }
-                            performanceChartData.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, value: dayPerformance });
-                        }
-                    } else if (daysDiff <= 30) {
-                        dateRangeType = 'weekly';
-                        const weeks = [];
-                        let weekStart = new Date(start);
-                        weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
-                        while (weekStart <= end) {
-                            const weekEnd = new Date(weekStart);
-                            weekEnd.setDate(weekEnd.getDate() + 6);
-                            weeks.push({ start: new Date(weekStart), end: new Date(Math.min(weekEnd, end)) });
-                            weekStart.setDate(weekStart.getDate() + 7);
-                        }
-                        weeks.forEach((week, index) => {
-                            const weekData = filtered.filter(row => {
-                                const rowDate = parseDate(row.date);
-                                return rowDate && rowDate >= week.start && rowDate <= week.end;
-                            });
-                            const weekDays = countWorkingDays(week.start, week.end);
-                            let weekPerformance = 0;
-                            if (userDepartment === 'Outbound Department') {
-                                let weekAppointments = 0, weekCalls = 0, weekProduction = 0;
-                                weekData.forEach(row => {
-                                    const standardTaskName = findTaskName(row.task.trim());
-                                    const amountValue = parseNumericValue(row.amount);
-                                    if (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt') weekAppointments += amountValue;
-                                    if (standardTaskName === 'Outbound Call') weekCalls += amountValue;
-                                });
-                                const weekProductionData = productionData.filter(row => {
-                                    const rowName = row.name.trim().replace(/^["']|["']$/g, '');
-                                    const rowDate = parseDate(row.date);
-                                    return rowName === selectedName && rowDate && rowDate >= week.start && rowDate <= week.end;
-                                });
-                                weekProduction = weekProductionData.reduce((sum, row) => {
-                                    const amount = parseNumericValue(row.amount);
-                                    return sum + amount;
-                                }, 0);
-                                const appointmentGoalWeek = 20 * weekDays;
-                                const callGoalWeek = 100 * weekDays;
-                                const productionGoalWeek = getEmployeeGoal(selectedName, 'production') * weekDays;
-                                const appointmentPerf = appointmentGoalWeek > 0 ? (weekAppointments / appointmentGoalWeek) * 100 : 0;
-                                const callPerf = callGoalWeek > 0 ? (weekCalls / callGoalWeek) * 100 : 0;
-                                const productionPerf = productionGoalWeek > 0 ? (weekProduction / productionGoalWeek) * 100 : 0;
-                                weekPerformance = Math.min(100, ((appointmentPerf + callPerf + productionPerf) / 3));
-                            } else if (userDepartment === 'AR Department') {
-                                let weekCollection = 0;
-                                weekData.forEach(row => {
-                                    const taskLower = row.task.trim().toLowerCase();
-                                    if (taskLower === 'total balance collected') {
-                                        const amount = parseNumericValue(row.collectionAmount);
-                                        if (amount > 0) weekCollection += amount;
-                                    }
-                                });
-                                const weekInsPmtData = filteredInsPmt.filter(row => {
-                                    const rowDate = parseDate(row.date);
-                                    return rowDate && rowDate >= week.start && rowDate <= week.end;
-                                });
-                                weekInsPmtData.forEach(row => {
-                                    const amount = parseNumericValue(row.amount);
-                                    if (amount > 0) weekCollection += amount;
-                                });
-                                const collectionGoalWeek = getEmployeeGoal(selectedName, 'collection') * weekDays;
-                                weekPerformance = collectionGoalWeek > 0 ? Math.min(100, (weekCollection / collectionGoalWeek) * 100) : 0;
-                            } else if (userDepartment === 'Verification Department') {
-                                let weekVerifications = 0;
-                                weekData.forEach(row => {
-                                    const standardTaskName = findTaskName(row.task.trim());
-                                    if (standardTaskName === 'Verification' || 
-                                        standardTaskName === 'Verification (M)' || 
-                                        standardTaskName === 'Verification (P)') {
-                                        const amountValue = parseNumericValue(row.amount);
-                                        if (amountValue > 0) weekVerifications += amountValue;
-                                    }
-                                });
-                                const verificationGoalWeek = getEmployeeGoal(selectedName, 'verification') * weekDays;
-                                weekPerformance = verificationGoalWeek > 0 ? Math.min(100, (weekVerifications / verificationGoalWeek) * 100) : 0;
-                            }
-                            performanceChartData.push({ label: `Week ${index + 1}`, value: weekPerformance });
-                        });
-                    } else {
-                        dateRangeType = 'monthly';
-                        const months = [];
-                        let monthStart = new Date(start.getFullYear(), start.getMonth(), 1);
-                        while (monthStart <= end) {
-                            const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
-                            months.push({
-                                start: new Date(Math.max(monthStart, start)),
-                                end: new Date(Math.min(monthEnd, end)),
-                                label: monthStart.toLocaleString('default', { month: 'short', year: 'numeric' })
-                            });
-                            monthStart.setMonth(monthStart.getMonth() + 1);
-                        }
-                        months.forEach((month) => {
-                            const monthData = filtered.filter(row => {
-                                const rowDate = parseDate(row.date);
-                                return rowDate && rowDate >= month.start && rowDate <= month.end;
-                            });
-                            const monthDays = countWorkingDays(month.start, month.end);
-                            let monthPerformance = 0;
-                            if (userDepartment === 'Outbound Department') {
-                                let monthAppointments = 0, monthCalls = 0, monthProduction = 0;
-                                monthData.forEach(row => {
-                                    const standardTaskName = findTaskName(row.task.trim());
-                                    const amountValue = parseNumericValue(row.amount);
-                                    if (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt') monthAppointments += amountValue;
-                                    if (standardTaskName === 'Outbound Call') monthCalls += amountValue;
-                                });
-                                const monthProductionData = productionData.filter(row => {
-                                    const rowName = row.name.trim().replace(/^["']|["']$/g, '');
-                                    const rowDate = parseDate(row.date);
-                                    return rowName === selectedName && rowDate && rowDate >= month.start && rowDate <= month.end;
-                                });
-                                monthProduction = monthProductionData.reduce((sum, row) => {
-                                    const amount = parseNumericValue(row.amount);
-                                    return sum + amount;
-                                }, 0);
-                                const appointmentGoalMonth = 20 * monthDays;
-                                const callGoalMonth = 100 * monthDays;
-                                const productionGoalMonth = getEmployeeGoal(selectedName, 'production') * monthDays;
-                                const appointmentPerf = appointmentGoalMonth > 0 ? (monthAppointments / appointmentGoalMonth) * 100 : 0;
-                                const callPerf = callGoalMonth > 0 ? (monthCalls / callGoalMonth) * 100 : 0;
-                                const productionPerf = productionGoalMonth > 0 ? (monthProduction / productionGoalMonth) * 100 : 0;
-                                monthPerformance = Math.min(100, ((appointmentPerf + callPerf + productionPerf) / 3));
-                            } else if (userDepartment === 'AR Department') {
-                                let monthCollection = 0;
-                                monthData.forEach(row => {
-                                    const taskLower = row.task.trim().toLowerCase();
-                                    if (taskLower === 'total balance collected') {
-                                        const amount = parseNumericValue(row.collectionAmount);
-                                        if (amount > 0) monthCollection += amount;
-                                    }
-                                });
-                                const monthInsPmtData = filteredInsPmt.filter(row => {
-                                    const rowDate = parseDate(row.date);
-                                    return rowDate && rowDate >= month.start && rowDate <= month.end;
-                                });
-                                monthInsPmtData.forEach(row => {
-                                    const amount = parseNumericValue(row.amount);
-                                    if (amount > 0) monthCollection += amount;
-                                });
-                                const collectionGoalMonth = getEmployeeGoal(selectedName, 'collection') * monthDays;
-                                monthPerformance = collectionGoalMonth > 0 ? Math.min(100, (monthCollection / collectionGoalMonth) * 100) : 0;
-                            } else if (userDepartment === 'Verification Department') {
-                                let monthVerifications = 0;
-                                monthData.forEach(row => {
-                                    const standardTaskName = findTaskName(row.task.trim());
-                                    if (standardTaskName === 'Verification' || 
-                                        standardTaskName === 'Verification (M)' || 
-                                        standardTaskName === 'Verification (P)') {
-                                        const amountValue = parseNumericValue(row.amount);
-                                        if (amountValue > 0) monthVerifications += amountValue;
-                                    }
-                                });
-                                const verificationGoalMonth = getEmployeeGoal(selectedName, 'verification') * monthDays;
-                                monthPerformance = verificationGoalMonth > 0 ? Math.min(100, (monthVerifications / verificationGoalMonth) * 100) : 0;
-                            }
-                            performanceChartData.push({ label: month.label, value: monthPerformance });
-                        });
-                    }
-                }
-
-                return {
-                    taskCounts: sortedTasks, unlistedTasks: sortedUnlistedTasks, taskPercentages,
-                    totalCollectionAmount: totalCollectionAmount.toFixed(2),
-                    totalProductionAmount: totalProductionAmount.toFixed(2),
-                    collectionPercentage: collectionPercentage.toFixed(1),
-                    productionPercentage: productionPercentage.toFixed(1),
-                    appointmentPercentage: appointmentPercentage.toFixed(1),
-                    verificationPercentage: verificationPercentage.toFixed(1),
-                    overallPerformance: Math.round(overallPerformance),
-                    totalTasks: Math.round(totalTasks), department: userDepartment, state: userState,
-                    totalAppointments, totalCalls, totalCompletedAppointments, numberOfDays,
-                    appointmentGoal: userDepartment === 'Outbound Department' ? 20 * numberOfDays : null,
-                    callGoal: userDepartment === 'Outbound Department' ? 100 * numberOfDays : null,
-                    collectionGoal: userDepartment === 'AR Department' ? getEmployeeGoal(selectedName, 'collection') * numberOfDays : null,
-                    productionGoal: userDepartment === 'Outbound Department' ? getEmployeeGoal(selectedName, 'production') * numberOfDays : null,
-                    verificationCount: (taskCounts['Verification'] || 0) + 
-                       (taskCounts['Verification (M)'] || 0) + 
-                       (taskCounts['Verification (P)'] || 0),
-                    verificationGoal: userDepartment === 'Verification Department' ? getEmployeeGoal(selectedName, 'verification') * numberOfDays : null,
-                    performanceChartData, dateRangeType
-                };
-            } catch (error) {
-                console.error('Error in calculatePerformance:', error);
-                setError(`Calculation error: ${error.message}`);
-                return null;
-            }
-        };
-
-            const performance = calculatePerformance();
-            const perfColor = performance ? getPerformanceColor(performance.overallPerformance) : null;
-
-            // Debug logging
-            useEffect(() => {
-                if (selectedName) {
-                    console.log('Selected Name:', selectedName);
-                    console.log('Performance Data:', performance);
-                    if (performance) {
-                        console.log('Department:', performance.department);
-                        console.log('Total Collection:', performance.totalCollectionAmount);
-                        console.log('Total Production:', performance.totalProductionAmount);
-                        console.log('Completed Appointments:', performance.totalCompletedAppointments);
-                    }
-                }
-            }, [selectedName, startDate, endDate]);
-
-            // PART 5/5: UI RENDERING
             return (
                 <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
                     <div className="max-w-7xl mx-auto">
+                        {/* Header */}
                         <div className="flex items-center justify-between mb-8">
                             <div className="flex items-center gap-3">
                                 <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-3 rounded-xl shadow-lg shadow-cyan-500/50">
@@ -1296,17 +1257,29 @@
                                     </svg>
                                 </div>
 
-                                <button onClick={fetchDataFromSheet} disabled={loading} className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:from-gray-600 disabled:to-gray-600 text-white rounded-xl transition-all shadow-lg shadow-cyan-500/30 font-semibold">
+                                <button onClick={fetchDashboardData} disabled={loading} className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:from-gray-600 disabled:to-gray-600 text-white rounded-xl transition-all shadow-lg shadow-cyan-500/30 font-semibold">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                         <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
                                     </svg>
                                     {loading ? 'Refreshing...' : 'Refresh'}
+                                </button>
+
+                                <button 
+                                    onClick={handleAdminClick}
+                                    className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl transition-all shadow-lg shadow-amber-500/30 font-semibold"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <circle cx="12" cy="12" r="3"/>
+                                        <path d="M12 1v6m0 6v6m5.657-13.657l-4.243 4.243m-2.828 2.828l-4.243 4.243m16.97-1.414l-6-6m-6-6l-6 6"/>
+                                    </svg>
+                                    Admin
                                 </button>
                             </div>
                         </div>
 
                         {error && <div className="mb-6 p-4 bg-red-900/50 border border-red-700 rounded-xl text-red-200 text-sm shadow-lg">{error}</div>}
 
+                        {/* Loading State */}
                         {loading && (
                             <div className="text-center py-20">
                                 <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-12 border border-slate-600 inline-block shadow-2xl">
@@ -1316,9 +1289,11 @@
                             </div>
                         )}
 
+                        {/* Performance Display */}
                         {!loading && performance && selectedName && (
                             <div className="space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    {/* Collection/Production Card */}
                                     <div className="bg-gradient-to-br from-slate-800 via-slate-800 to-cyan-900/20 rounded-2xl p-6 border border-cyan-500/30 hover:border-cyan-400 hover:shadow-2xl hover:shadow-cyan-500/20 transition-all relative overflow-hidden group">
                                         <div className="absolute top-0 right-0 w-40 h-40 bg-cyan-500/10 rounded-full -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-500"></div>
                                         <div className="relative z-10">
@@ -1330,185 +1305,202 @@
                                                     </svg>
                                                 </div>
                                                 <h3 className="text-cyan-200 text-sm font-semibold">
-                                                    {performance.department === 'AR Department' ? 'Total Collection' : performance.department === 'Outbound Department' ? 'Total Production' : 'Total Verifications'}
+                                                    {performance.department === 'AR Department' ? 'Total Collection' : 'Total Production'}
                                                 </h3>
                                             </div>
                                             <p className="text-white text-3xl font-bold mb-2">
-                                                {performance.department === 'AR Department' ? `${parseFloat(performance.totalCollectionAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : performance.department === 'Outbound Department' ? `${parseFloat(performance.totalProductionAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : performance.verificationCount}
+                                                ${parseFloat(performance.totalCollectionAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </p>
-                                            <div className="flex items-center gap-2">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
-                                                    <polyline points="17 6 23 6 23 12"/>
-                                                </svg>
-                                                <span className="text-cyan-300 text-sm font-bold">
-                                                    {performance.department === 'AR Department' ? `${performance.collectionPercentage}%` : performance.department === 'Outbound Department' ? `${performance.productionPercentage}%` : `${performance.verificationPercentage}%`} of state
-                                                </span>
-                                            </div>
+                                            <p className="text-cyan-300 text-sm font-medium">
+                                                Goal: ${parseFloat(performance.collectionGoal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </p>
                                         </div>
                                     </div>
 
+                                    {/* Office Card */}
                                     <div className="bg-gradient-to-br from-slate-800 via-slate-800 to-purple-900/20 rounded-2xl p-6 border border-purple-500/30 hover:border-purple-400 hover:shadow-2xl hover:shadow-purple-500/20 transition-all relative overflow-hidden group">
                                         <div className="absolute top-0 right-0 w-40 h-40 bg-purple-500/10 rounded-full -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-500"></div>
                                         <div className="relative z-10">
                                             <div className="flex items-center gap-3 mb-4">
                                                 <div className="bg-gradient-to-br from-purple-500 to-pink-600 p-2.5 rounded-lg shadow-lg shadow-purple-500/50">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                                                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                                                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                                                        <polyline points="9 22 9 12 15 12 15 22"/>
                                                     </svg>
                                                 </div>
-                                                <h3 className="text-purple-200 text-sm font-semibold">
-                                                    {performance.department === 'AR Department' ? 'Collection Goal' : performance.department === 'Outbound Department' ? 'Production Goal' : 'Verification Goal'}
-                                                </h3>
+                                                <h3 className="text-purple-200 text-sm font-semibold">Office Location</h3>
                                             </div>
-                                            <p className="text-white text-3xl font-bold mb-2">
-                                                {performance.department === 'AR Department' && performance.collectionGoal ? `${performance.collectionGoal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : performance.department === 'Outbound Department' && performance.productionGoal ? `${performance.productionGoal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : Math.round(performance.verificationGoal || 0)}
+                                            <p className="text-white text-2xl font-bold mb-2">{performance.office}</p>
+                                            <p className="text-purple-300 text-sm font-medium">
+                                                {performance.department} • {performance.state || 'N/A'}
                                             </p>
-                                            <p className="text-purple-300 text-sm font-medium">{performance.numberOfDays} working {performance.numberOfDays === 1 ? 'day' : 'days'}</p>
                                         </div>
                                     </div>
 
-                                    {performance.department === 'Outbound Department' && (
-                                        <div className="bg-gradient-to-br from-slate-800 via-slate-800 to-amber-900/20 rounded-2xl p-6 border border-amber-500/30 hover:border-amber-400 hover:shadow-2xl hover:shadow-amber-500/20 transition-all relative overflow-hidden group">
-                                            <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-500"></div>
-                                            <div className="relative z-10">
-                                                <div className="flex items-center gap-3 mb-4">
-                                                    <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-2.5 rounded-lg shadow-lg shadow-amber-500/50">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                                                            <polyline points="22 4 12 14.01 9 11.01"/>
-                                                        </svg>
-                                                    </div>
-                                                    <h3 className="text-amber-200 text-sm font-semibold">Completed Appts</h3>
-                                                </div>
-                                                <p className="text-white text-3xl font-bold mb-2">{performance.totalCompletedAppointments || 0}</p>
-                                                <div className="flex items-center gap-2">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                                    {/* Performance Score Card */}
+                                    <div className={`bg-gradient-to-br from-slate-800 via-slate-800 to-emerald-900/20 rounded-2xl p-6 border border-${performance.perfColor.border}/30 hover:border-${performance.perfColor.border} hover:shadow-2xl transition-all relative overflow-hidden group`}>
+                                        <div className={`absolute top-0 right-0 w-40 h-40 bg-gradient-to-br ${performance.perfColor.bg} opacity-10 rounded-full -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-500`}></div>
+                                        <div className="relative z-10">
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <div className={`bg-gradient-to-br ${performance.perfColor.bg} p-2.5 rounded-lg shadow-lg`}>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                                                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
                                                     </svg>
-                                                    <span className="text-amber-300 text-sm font-bold">{performance.appointmentPercentage}% of state</span>
                                                 </div>
+                                                <h3 className={`${performance.perfColor.text} text-sm font-semibold`}>Overall Performance</h3>
+                                            </div>
+                                            <p className="text-white text-3xl font-bold mb-2">{performance.overallPerformance}%</p>
+                                            <div className="w-full bg-slate-700 rounded-full h-2.5 mb-2">
+                                                <div className={`bg-gradient-to-r ${performance.perfColor.bg} h-2.5 rounded-full transition-all duration-500`} style={{width: `${Math.min(100, performance.overallPerformance)}%`}}></div>
                                             </div>
                                         </div>
-                                    )}
+                                    </div>
 
-                                    {perfColor && (
-                                        <div className={`bg-gradient-to-br ${perfColor.bg} rounded-2xl p-6 border-2 ${perfColor.border} hover:shadow-2xl transition-all relative overflow-hidden group shadow-xl`}>
-                                            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-500"></div>
-                                            <div className="relative z-10">
-                                                <div className="flex items-center gap-3 mb-4">
-                                                    <div className="bg-white/20 p-2.5 rounded-lg backdrop-blur">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                                                            <circle cx="12" cy="12" r="10"/>
-                                                            <polyline points="12 6 12 12 16 14"/>
-                                                        </svg>
-                                                    </div>
-                                                    <h3 className="text-white text-sm font-semibold">Overall Performance</h3>
+                                    {/* Working Days Card */}
+                                    <div className="bg-gradient-to-br from-slate-800 via-slate-800 to-amber-900/20 rounded-2xl p-6 border border-amber-500/30 hover:border-amber-400 hover:shadow-2xl hover:shadow-amber-500/20 transition-all relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-500"></div>
+                                        <div className="relative z-10">
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-2.5 rounded-lg shadow-lg shadow-amber-500/50">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                                        <line x1="16" y1="2" x2="16" y2="6"/>
+                                                        <line x1="8" y1="2" x2="8" y2="6"/>
+                                                        <line x1="3" y1="10" x2="21" y2="10"/>
+                                                    </svg>
                                                 </div>
-                                                <p className="text-white text-5xl font-black mb-2 drop-shadow-lg">{performance.overallPerformance}%</p>
-                                                <p className="text-white/90 text-sm font-medium">Based on metrics</p>
+                                                <h3 className="text-amber-200 text-sm font-semibold">Working Days</h3>
                                             </div>
+                                            <p className="text-white text-3xl font-bold mb-2">{performance.numberOfDays}</p>
+                                            <p className="text-amber-300 text-sm font-medium">Total Tasks: {performance.totalTasks}</p>
                                         </div>
-                                    )}
+                                    </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 border border-slate-600 shadow-2xl">
-                                        <div className="flex items-center gap-3 mb-6">
-                                            <div className="bg-gradient-to-br from-blue-500 to-cyan-600 p-2.5 rounded-lg shadow-lg shadow-blue-500/50">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                                                    <line x1="18" y1="20" x2="18" y2="10"/>
-                                                    <line x1="12" y1="20" x2="12" y2="4"/>
-                                                    <line x1="6" y1="20" x2="6" y2="14"/>
-                                                </svg>
-                                            </div>
-                                            <div>
-                                                <h3 className="text-xl font-bold text-white">Performance Over Time</h3>
-                                                <p className="text-slate-400 text-sm">
-                                                    {performance.dateRangeType === 'daily' ? 'Daily Performance (≤7 days)' : performance.dateRangeType === 'weekly' ? 'Weekly Performance (≤30 days)' : 'Monthly Performance (>30 days)'}
-                                                </p>
-                                            </div>
+                                {/* Task Breakdown Table */}
+                                <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 border border-slate-600 shadow-2xl">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-3 rounded-xl shadow-lg shadow-indigo-500/50">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                                                <line x1="8" y1="6" x2="21" y2="6"/>
+                                                <line x1="8" y1="12" x2="21" y2="12"/>
+                                                <line x1="8" y1="18" x2="21" y2="18"/>
+                                                <line x1="3" y1="6" x2="3.01" y2="6"/>
+                                                <line x1="3" y1="12" x2="3.01" y2="12"/>
+                                                <line x1="3" y1="18" x2="3.01" y2="18"/>
+                                            </svg>
                                         </div>
-                                        <PerformanceChart performanceData={performance.performanceChartData} dateRange={performance.dateRangeType} />
+                                        <h2 className="text-2xl font-bold text-white">Task Breakdown</h2>
                                     </div>
-
-                                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 border border-slate-600 shadow-2xl">
-                                        <div className="flex items-center gap-3 mb-6">
-                                            <div className="bg-gradient-to-br from-purple-500 to-pink-600 p-2.5 rounded-lg shadow-lg shadow-purple-500/50">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                                                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-                                                </svg>
-                                            </div>
-                                            <h3 className="text-xl font-bold text-white">Top Tasks</h3>
-                                        </div>
-                                        <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar pr-2">
-                                            {performance.taskCounts.map(([taskName, count], index) => (
-                                                <div key={taskName} className="bg-slate-700/40 rounded-lg p-3 hover:bg-slate-700/60 transition-all border border-slate-600/50 hover:border-slate-500">
-                                                    <div className="flex items-start justify-between gap-3">
-                                                        <div className="flex-1 min-w-0">
-                                                            <h4 className="text-white font-medium text-sm truncate">{taskName}</h4>
-                                                            <div className="flex items-center gap-2 mt-1">
-                                                                <span className="text-slate-400 text-xs">{Math.round(count)} tasks</span>
-                                                                <span className="text-slate-600">•</span>
-                                                                <span className="text-cyan-400 text-xs font-semibold">{performance.taskPercentages[taskName]?.toFixed(1) || 0}% of state</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="text-right shrink-0">
-                                                            <div className="bg-cyan-500/10 px-2 py-1 rounded text-cyan-300 text-xs font-bold">#{index + 1}</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-
-                                            {performance.unlistedTasks.length > 0 && (
-                                                <>
-                                                    <div className="pt-3 pb-1">
-                                                        <h4 className="text-amber-400 font-semibold text-xs uppercase tracking-wide">Other Tasks</h4>
-                                                    </div>
-                                                    {performance.unlistedTasks.map(([taskName, count]) => (
-                                                        <div key={taskName} className="bg-amber-900/20 rounded-lg p-3 hover:bg-amber-900/30 transition-all border border-amber-700/30">
-                                                            <div className="flex items-center justify-between">
-                                                                <div className="flex-1 pr-4">
-                                                                    <h4 className="text-amber-200 font-medium text-sm">{taskName}</h4>
-                                                                    <div className="flex items-center gap-2 mt-1">
-                                                                        <span className="text-amber-400/70 text-xs">{Math.round(count)} tasks</span>
+                                    
+                                    <div className="overflow-x-auto custom-scrollbar">
+                                        <table className="w-full">
+                                            <thead>
+                                                <tr className="border-b border-slate-600">
+                                                    <th className="text-left py-4 px-4 text-slate-300 font-semibold">Rank</th>
+                                                    <th className="text-left py-4 px-4 text-slate-300 font-semibold">Task Name</th>
+                                                    <th className="text-right py-4 px-4 text-slate-300 font-semibold">Count</th>
+                                                    <th className="text-right py-4 px-4 text-slate-300 font-semibold">Percentage</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {performance.taskCounts.map(([taskName, count], index) => {
+                                                    const percentage = performance.totalTasks > 0 ? (count / performance.totalTasks * 100).toFixed(1) : 0;
+                                                    return (
+                                                        <tr key={taskName} className="border-b border-slate-700 hover:bg-slate-700/30 transition-colors">
+                                                            <td className="py-4 px-4">
+                                                                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-white text-sm font-bold shadow-lg">
+                                                                    {index + 1}
+                                                                </span>
+                                                            </td>
+                                                            <td className="py-4 px-4 text-white font-medium">{taskName}</td>
+                                                            <td className="py-4 px-4 text-right text-cyan-300 font-bold text-lg">{Math.round(count)}</td>
+                                                            <td className="py-4 px-4 text-right">
+                                                                <div className="flex items-center justify-end gap-3">
+                                                                    <div className="w-24 bg-slate-700 rounded-full h-2">
+                                                                        <div className="bg-gradient-to-r from-cyan-500 to-blue-600 h-2 rounded-full transition-all duration-500" style={{width: `${percentage}%`}}></div>
                                                                     </div>
+                                                                    <span className="text-slate-300 font-semibold min-w-[3rem]">{percentage}%</span>
                                                                 </div>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </>
-                                            )}
-
-                                            {performance.taskCounts.length === 0 && performance.unlistedTasks.length === 0 && (
-                                                <div className="text-center py-8 text-slate-400"><p className="text-sm">No tasks found</p></div>
-                                            )}
-                                        </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {!loading && !selectedName && (
+                        {/* Empty State */}
+                        {!loading && !performance && !error && (
                             <div className="text-center py-20">
                                 <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-12 border border-slate-600 inline-block shadow-2xl">
-                                    <div className="bg-gradient-to-br from-blue-600/30 to-blue-500/20 p-4 rounded-full inline-block mb-4">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                                            <circle cx="12" cy="7" r="4"/>
+                                    <div className="bg-gradient-to-br from-slate-700 to-slate-800 p-6 rounded-full inline-block mb-6">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <line x1="12" y1="16" x2="12" y2="12"/>
+                                            <line x1="12" y1="8" x2="12.01" y2="8"/>
                                         </svg>
                                     </div>
-                                    <p className="text-slate-300 mt-4 text-lg">Select an employee to view performance data</p>
+                                    <h2 className="text-2xl font-bold text-white mb-3">Select an Employee</h2>
+                                    <p className="text-slate-400 text-lg">Choose a user from the dropdown to view their performance metrics</p>
                                 </div>
                             </div>
                         )}
                     </div>
+
+                    {/* Admin Modals */}
+                    {showPasswordModal && (
+                        <PasswordModal 
+                            onClose={() => setShowPasswordModal(false)}
+                            onSuccess={handlePasswordSuccess}
+                        />
+                    )}
+
+                    {showAdminMenu && (
+                        <AdminMenu 
+                            onClose={() => setShowAdminMenu(false)}
+                            onSelectOption={handleAdminMenuSelect}
+                        />
+                    )}
+
+                    {adminView === 'goals' && (
+                        <GoalManagement 
+                            onClose={handleCloseAdminView}
+                            configData={configData}
+                        />
+                    )}
+
+                    {adminView === 'employees' && (
+                        <EmployeeAssignment 
+                            onClose={handleCloseAdminView}
+                            configData={configData}
+                        />
+                    )}
+
+                    {adminView === 'add-employee' && (
+                        <AddEmployee onClose={handleCloseAdminView} />
+                    )}
+
+                    {adminView === 'add-office' && (
+                        <AddOffice onClose={handleCloseAdminView} />
+                    )}
+
+                    {loadingConfig && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+                            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-12 border border-slate-600 shadow-2xl">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+                                <p className="text-slate-300 text-lg">Loading configuration...</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
 
-        ReactDOM.render(<PerformanceTracker />, document.getElementById('root'));
+        ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 </body>
 </html>
-
