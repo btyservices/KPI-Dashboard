@@ -1250,6 +1250,7 @@ const appendToAdminConfig = async (rowData) => {
 
             const handleCloseAdminView = async () => {
                 setAdminView(null);
+                setShowAdminMenu(true); // Return to admin menu instead of closing
                 try {
                     const data = await fetchAdminConfig();
                     setConfigData(data);
@@ -1543,5 +1544,6 @@ const appendToAdminConfig = async (rowData) => {
     </script>
 </body>
 </html>
+
 
 
