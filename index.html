@@ -676,7 +676,7 @@
 
             useEffect(() => {
                 const initialAssignments = configData.employeeCodes.map(empCode => {
-                    const existingAssignments = getEmployeeAssignments(configData.employees, empCode, selectedMonth, selectedYear);
+                    const existingAssignments = getEmployeeAssignments(configData.employees, empCode, selectedMonth, selectedYear,true);
                     const latest = existingAssignments[0];
                     
                     // Get all offices for this employee
