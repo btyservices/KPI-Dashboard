@@ -249,67 +249,79 @@
 
         // Admin Config Functions
         const fetchAdminConfig = async () => {
-            try {
-                const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Admin_Config!A:I?key=${API_KEY}`;
-                const response = await fetch(url);
-                if (!response.ok) throw new Error('Failed to fetch Admin_Config');
-                const result = await response.json();
-                const rows = result.values || [];
-                
-                if (rows.length === 0) return { employees: [], goals: [], offices: new Set(), employeeCodes: new Set() };
-                
-                const data = rows.slice(1);
-                const employees = [];
-                const goals = [];
-                const offices = new Set();
-                const employeeCodes = new Set();
-                
-                data.forEach(row => {
-                    const employeeCode = row[0] || '';
-                    const department = row[1] || '';
-                    const office = row[2] || '';
-                    const state = row[3] || '';
-                    const goalType = row[4] || '';
-                    const goalValue = row[5] || '';
-                    const effectiveMonth = row[6] || '';
-                    const effectiveYear = row[7] || '';
-                    
-                    if (office) offices.add(office);
-                    
-                    if (employeeCode.trim()) {
-                        employeeCodes.add(employeeCode);
-                        employees.push({
-                            employeeCode,
-                            department,
-                            office,
-                            state,
-                            effectiveMonth: parseInt(effectiveMonth) || 0,
-                            effectiveYear: parseInt(effectiveYear) || 0
-                        });
-                    } else if (goalType.trim()) {
-                        goals.push({
-                            department,
-                            office,
-                            state,
-                            goalType,
-                            goalValue: parseFloat(goalValue) || 0,
-                            effectiveMonth: parseInt(effectiveMonth) || 0,
-                            effectiveYear: parseInt(effectiveYear) || 0
-                        });
-                    }
+    try {
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Admin_Config!A:I?key=${API_KEY}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Failed to fetch Admin_Config');
+        const result = await response.json();
+        const rows = result.values || [];
+        
+        if (rows.length === 0) return { employees: [], goals: [], offices: new Set(), employeeCodes: new Set() };
+        
+        const data = rows.slice(1); // Skip header row
+        const employees = [];
+        const goals = [];
+        const offices = new Set();
+        const employeeCodes = new Set();
+        
+        data.forEach(row => {
+            const employeeCode = row[0] || '';
+            const department = row[1] || '';
+            const office = row[2] || '';
+            const state = row[3] || '';
+            const goalType = row[4] || '';
+            const goalValue = row[5] || '';
+            const effectiveMonth = row[6] || '';
+            const effectiveYear = row[7] || '';
+            
+            if (office) offices.add(office);
+            
+            // Employee row: has employeeCode, department, office, and state
+            if (employeeCode.trim() && department.trim()) {
+                employeeCodes.add(employeeCode);
+                employees.push({
+                    employeeCode: employeeCode.trim(),
+                    department: department.trim(),
+                    office: office.trim(),
+                    state: state.trim(),
+                    effectiveMonth: parseInt(effectiveMonth) || 0,
+                    effectiveYear: parseInt(effectiveYear) || 0
                 });
-                
-                return { 
-                    employees, 
-                    goals, 
-                    offices: Array.from(offices).sort(), 
-                    employeeCodes: Array.from(employeeCodes).sort() 
-                };
-            } catch (error) {
-                console.error('Error fetching admin config:', error);
-                throw error;
             }
+            
+            // Goal row: has goalType and goalValue
+            if (goalType.trim() && goalValue) {
+                goals.push({
+                    department: department.trim(),
+                    office: office.trim(),
+                    state: state.trim(),
+                    goalType: goalType.trim(),
+                    goalValue: parseFloat(goalValue) || 0,
+                    effectiveMonth: parseInt(effectiveMonth) || 0,
+                    effectiveYear: parseInt(effectiveYear) || 0
+                });
+            }
+        });
+        
+        console.log('✅ Fetched config:', { 
+            employeeCount: employees.length, 
+            goalCount: goals.length,
+            officeCount: offices.size,
+            employeeCodeCount: employeeCodes.size,
+            sampleEmployees: employees.slice(0, 5)
+        });
+        
+        return { 
+            employees, 
+            goals, 
+            offices: Array.from(offices).sort(), 
+            employeeCodes: Array.from(employeeCodes).sort() 
         };
+    } catch (error) {
+        console.error('Error fetching admin config:', error);
+        throw error;
+    }
+};
 
         const appendToAdminConfig = async (rowData) => {
         try {
@@ -332,22 +344,35 @@
         }
     };
 
-        const getEmployeeAssignments = (employees, employeeCode, month, year) => {
-            const applicable = employees.filter(emp => 
-                emp.employeeCode === employeeCode &&
-                (emp.effectiveYear < year || (emp.effectiveYear === year && emp.effectiveMonth <= month))
-            );
-            
-            if (applicable.length === 0) return [];
-            
-            applicable.sort((a, b) => {
-                if (b.effectiveYear !== a.effectiveYear) return b.effectiveYear - a.effectiveYear;
-                return b.effectiveMonth - a.effectiveMonth;
-            });
-            
-            // Return all assignments (for multiple offices)
-            return applicable;
-        };
+        const getEmployeeAssignments = (employees, employeeCode, month, year, exactMatch = false) => {
+    let applicable;
+    
+    if (exactMatch) {
+        // Only get assignments for the EXACT month and year
+        applicable = employees.filter(emp => 
+            emp.employeeCode === employeeCode &&
+            emp.effectiveMonth === month &&
+            emp.effectiveYear === year
+        );
+    } else {
+        // Get all assignments up to and including this month/year
+        applicable = employees.filter(emp => 
+            emp.employeeCode === employeeCode &&
+            (emp.effectiveYear < year || (emp.effectiveYear === year && emp.effectiveMonth <= month))
+        );
+    }
+    
+    console.log(`🔍 Looking for ${employeeCode} in ${month}/${year} (exact: ${exactMatch}):`, applicable);
+    
+    if (applicable.length === 0) return [];
+    
+    applicable.sort((a, b) => {
+        if (b.effectiveYear !== a.effectiveYear) return b.effectiveYear - a.effectiveYear;
+        return b.effectiveMonth - a.effectiveMonth;
+    });
+    
+    return applicable;
+};
 
         const getGoalForOffice = (goals, department, office, goalType, month, year) => {
             const applicable = goals.filter(goal => 
@@ -2194,6 +2219,7 @@
     </script>
 </body>
 </html>
+
 
 
 
