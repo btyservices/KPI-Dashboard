@@ -1563,114 +1563,107 @@
         const result2 = await response2.json();
         const rows2 = result2.values || [];
 
-        // BATCH FETCH: Collection sheets
-        console.log('Fetching collection sheets in batch...');
-        const collectionRanges = COLLECTION_SHEETS.map(sheet => `${sheet}!A:F`).join('&ranges=');
-        const batchUrl1 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_2}/values:batchGet?ranges=${collectionRanges}&key=${API_KEY}`;
-        const batchResponse1 = await fetch(batchUrl1);
-        
+        // BATCH FETCH: Collection sheets (fixed rate limiting)
+        console.log('Fetching collection sheets in smaller batches...');
         let collectionResults = [];
-        if (batchResponse1.ok) {
-            const batchResult1 = await batchResponse1.json();
-            collectionResults = COLLECTION_SHEETS.map((sheetName, index) => ({
-                sheetName,
-                rows: batchResult1.valueRanges[index]?.values || []
-            }));
-            console.log('✅ Collection sheets fetched successfully');
-        } else {
-            console.warn('Batch fetch failed for collections, using fallback');
-            // Fallback to individual requests
-            for (const sheetName of COLLECTION_SHEETS) {
-                try {
-                    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_2}/values/${sheetName}!A:F?key=${API_KEY}`;
-                    const response = await fetch(url);
-                    if (response.ok) {
-                        const result = await response.json();
-                        collectionResults.push({ sheetName, rows: result.values || [] });
-                    } else {
-                        collectionResults.push({ sheetName, rows: [] });
-                    }
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                } catch (err) {
-                    console.warn(`Failed to fetch ${sheetName}:`, err);
-                    collectionResults.push({ sheetName, rows: [] });
+        const BATCH_SIZE = 10;
+        
+        for (let i = 0; i < COLLECTION_SHEETS.length; i += BATCH_SIZE) {
+            const batch = COLLECTION_SHEETS.slice(i, i + BATCH_SIZE);
+            const ranges = batch.map(sheet => `ranges=${encodeURIComponent(sheet + '!A:F')}`).join('&');
+            const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_2}/values:batchGet?${ranges}&key=${API_KEY}`;
+            
+            try {
+                const response = await fetch(batchUrl);
+                if (response.ok) {
+                    const result = await response.json();
+                    batch.forEach((sheetName, index) => {
+                        collectionResults.push({
+                            sheetName,
+                            rows: result.valueRanges[index]?.values || []
+                        });
+                    });
+                    console.log(`✅ Fetched collection batch ${Math.floor(i / BATCH_SIZE) + 1} of ${Math.ceil(COLLECTION_SHEETS.length / BATCH_SIZE)}`);
+                } else {
+                    batch.forEach(sheetName => collectionResults.push({ sheetName, rows: [] }));
                 }
+            } catch (err) {
+                console.error('Batch error:', err);
+                batch.forEach(sheetName => collectionResults.push({ sheetName, rows: [] }));
+            }
+            
+            if (i + BATCH_SIZE < COLLECTION_SHEETS.length) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
             }
         }
 
-        // Wait 1 second before next batch
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // BATCH FETCH: Production sheets
-        console.log('Fetching production sheets in batch...');
-        const productionRanges = COLLECTION_SHEETS.map(sheet => `${sheet}!A:C`).join('&ranges=');
-        const batchUrl2 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values:batchGet?ranges=${productionRanges}&key=${API_KEY}`;
-        const batchResponse2 = await fetch(batchUrl2);
-        
+        // BATCH FETCH: Production sheets (fixed rate limiting)
+        console.log('Fetching production sheets in smaller batches...');
         let productionResults = [];
-        if (batchResponse2.ok) {
-            const batchResult2 = await batchResponse2.json();
-            productionResults = COLLECTION_SHEETS.map((sheetName, index) => ({
-                sheetName,
-                rows: batchResult2.valueRanges[index]?.values || []
-            }));
-            console.log('✅ Production sheets fetched successfully');
-        } else {
-            console.warn('Batch fetch failed for production, using fallback');
-            // Fallback to individual requests
-            for (const sheetName of COLLECTION_SHEETS) {
-                try {
-                    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values/${sheetName}!A:C?key=${API_KEY}`;
-                    const response = await fetch(url);
-                    if (response.ok) {
-                        const result = await response.json();
-                        productionResults.push({ sheetName, rows: result.values || [] });
-                    } else {
-                        productionResults.push({ sheetName, rows: [] });
-                    }
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                } catch (err) {
-                    console.warn(`Failed to fetch production from ${sheetName}:`, err);
-                    productionResults.push({ sheetName, rows: [] });
+        
+        for (let i = 0; i < COLLECTION_SHEETS.length; i += BATCH_SIZE) {
+            const batch = COLLECTION_SHEETS.slice(i, i + BATCH_SIZE);
+            const ranges = batch.map(sheet => `ranges=${encodeURIComponent(sheet + '!A:C')}`).join('&');
+            const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values:batchGet?${ranges}&key=${API_KEY}`;
+            
+            try {
+                const response = await fetch(batchUrl);
+                if (response.ok) {
+                    const result = await response.json();
+                    batch.forEach((sheetName, index) => {
+                        productionResults.push({
+                            sheetName,
+                            rows: result.valueRanges[index]?.values || []
+                        });
+                    });
+                    console.log(`✅ Fetched production batch ${Math.floor(i / BATCH_SIZE) + 1} of ${Math.ceil(COLLECTION_SHEETS.length / BATCH_SIZE)}`);
+                } else {
+                    batch.forEach(sheetName => productionResults.push({ sheetName, rows: [] }));
                 }
+            } catch (err) {
+                console.error('Batch error:', err);
+                batch.forEach(sheetName => productionResults.push({ sheetName, rows: [] }));
+            }
+            
+            if (i + BATCH_SIZE < COLLECTION_SHEETS.length) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
             }
         }
 
-        // Wait 1 second before next batch
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // BATCH FETCH: Appointment sheets
-        console.log('Fetching appointment sheets in batch...');
-        const appointmentRanges = COLLECTION_SHEETS.map(sheet => `${sheet}!A:D`).join('&ranges=');
-        const batchUrl3 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values:batchGet?ranges=${appointmentRanges}&key=${API_KEY}`;
-        const batchResponse3 = await fetch(batchUrl3);
-        
+        // BATCH FETCH: Appointment sheets (fixed rate limiting)
+        console.log('Fetching appointment sheets in smaller batches...');
         let appointmentResults = [];
-        if (batchResponse3.ok) {
-            const batchResult3 = await batchResponse3.json();
-            appointmentResults = COLLECTION_SHEETS.map((sheetName, index) => ({
-                sheetName,
-                rows: batchResult3.valueRanges[index]?.values || []
-            }));
-            console.log('✅ Appointment sheets fetched successfully');
-        } else {
-            console.warn('Batch fetch failed for appointments, using fallback');
-            // Fallback to individual requests
-            for (const sheetName of COLLECTION_SHEETS) {
-                try {
-                    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values/${sheetName}!A:D?key=${API_KEY}`;
-                    const response = await fetch(url);
-                    if (response.ok) {
-                        const result = await response.json();
-                        appointmentResults.push({ sheetName, rows: result.values || [] });
-                    } else {
-                        appointmentResults.push({ sheetName, rows: [] });
-                    }
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                } catch (err) {
-                    console.warn(`Failed to fetch appointments from ${sheetName}:`, err);
-                    appointmentResults.push({ sheetName, rows: [] });
+        
+        for (let i = 0; i < COLLECTION_SHEETS.length; i += BATCH_SIZE) {
+            const batch = COLLECTION_SHEETS.slice(i, i + BATCH_SIZE);
+            const ranges = batch.map(sheet => `ranges=${encodeURIComponent(sheet + '!A:D')}`).join('&');
+            const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values:batchGet?${ranges}&key=${API_KEY}`;
+            
+            try {
+                const response = await fetch(batchUrl);
+                if (response.ok) {
+                    const result = await response.json();
+                    batch.forEach((sheetName, index) => {
+                        appointmentResults.push({
+                            sheetName,
+                            rows: result.valueRanges[index]?.values || []
+                        });
+                    });
+                    console.log(`✅ Fetched appointment batch ${Math.floor(i / BATCH_SIZE) + 1} of ${Math.ceil(COLLECTION_SHEETS.length / BATCH_SIZE)}`);
+                } else {
+                    batch.forEach(sheetName => appointmentResults.push({ sheetName, rows: [] }));
                 }
+            } catch (err) {
+                console.error('Batch error:', err);
+                batch.forEach(sheetName => appointmentResults.push({ sheetName, rows: [] }));
+            }
+            
+            if (i + BATCH_SIZE < COLLECTION_SHEETS.length) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
             }
         }
 
@@ -3319,6 +3312,7 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
     </script>
 </body>
 </html>
+
 
 
 
