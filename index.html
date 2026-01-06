@@ -1858,10 +1858,40 @@
 const assignments = getEmployeeAssignments(configData.employees, selectedName, currentMonth, currentYear);
 
 if (assignments.length === 0) {
-    // ... return early ...
+    console.warn(`⚠️ No assignments found for ${selectedName} in ${currentMonth}/${currentYear}`);
+    return {
+        taskCounts: [],
+        unlistedTasks: [],
+        taskPercentages: {},
+        totalCollectionAmount: '0.00',
+        totalProductionAmount: '0.00',
+        collectionPercentage: '0.0',
+        productionPercentage: '0.0',
+        appointmentPercentage: '0.0',
+        verificationPercentage: '0.0',
+        overallPerformance: 0,
+        totalTasks: 0,
+        department: 'Unassigned',
+        state: 'N/A',
+        offices: [],
+        totalAppointments: 0,
+        totalCalls: 0,
+        totalCompletedAppointments: 0,
+        numberOfDays: 0,
+        appointmentGoal: 0,
+        callGoal: 0,
+        collectionGoal: 0,
+        productionGoal: 0,
+        verificationCount: 0,
+        verificationGoal: 0,
+        performanceChartData: [],
+        dateRangeType: 'daily',
+        pieChartData: [],
+        radarChartData: []
+    };
 }
 
-const primaryAssignment = assignments[0]; // Use most recent assignment for department/state
+const primaryAssignment = assignments[0];
 
 // Get unique offices only (remove duplicates)
 const assignedOffices = [...new Set(assignments.map(a => a.office).filter(o => o))];
@@ -3407,6 +3437,7 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
     </script>
 </body>
 </html>
+
 
 
 
