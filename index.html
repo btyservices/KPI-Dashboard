@@ -1770,29 +1770,42 @@ console.log(`📋 Employee Info - Name: ${selectedName}, Dept: ${primaryAssignme
                     });
 
                     // Calculate working days
-                    let numberOfDays = 1;
-                    if (startDate && endDate) {
-                        numberOfDays = Math.max(1, countWorkingDays(new Date(startDate), new Date(endDate)));
-                    } else if (startDate || endDate) {
-                        numberOfDays = 1;
-                    } else {
-                        const uniqueDates = new Set();
-                        filtered.forEach(row => {
-                            const rowDate = parseDate(row.date);
-                            if (rowDate) {
-                                const shiftedDate = shiftWeekendToWeekday(rowDate);
-                                if (shiftedDate) uniqueDates.add(shiftedDate.toDateString());
-                            }
-                        });
-                        filteredInsPmt.forEach(row => {
-                            const rowDate = parseDate(row.date);
-                            if (rowDate) {
-                                const shiftedDate = shiftWeekendToWeekday(rowDate);
-                                if (shiftedDate) uniqueDates.add(shiftedDate.toDateString());
-                            }
-                        });
-                        numberOfDays = Math.max(1, uniqueDates.size);
-                    }
+let numberOfDays = 1;
+if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    // Check if it's the same date
+    if (start.toDateString() === end.toDateString()) {
+        // For same date, check if it's a weekday
+        const dayOfWeek = start.getDay();
+        numberOfDays = (dayOfWeek >= 1 && dayOfWeek <= 5) ? 1 : 0;
+        console.log(`📆 Same date selected: ${start.toDateString()}, working days: ${numberOfDays}`);
+    } else {
+        numberOfDays = Math.max(1, countWorkingDays(start, end));
+    }
+} else if (startDate || endDate) {
+    const singleDate = new Date(startDate || endDate);
+    const dayOfWeek = singleDate.getDay();
+    numberOfDays = (dayOfWeek >= 1 && dayOfWeek <= 5) ? 1 : 0;
+} else {
+    const uniqueDates = new Set();
+    filtered.forEach(row => {
+        const rowDate = parseDate(row.date);
+        if (rowDate) {
+            const shiftedDate = shiftWeekendToWeekday(rowDate);
+            if (shiftedDate) uniqueDates.add(shiftedDate.toDateString());
+        }
+    });
+    filteredInsPmt.forEach(row => {
+        const rowDate = parseDate(row.date);
+        if (rowDate) {
+            const shiftedDate = shiftWeekendToWeekday(rowDate);
+            if (shiftedDate) uniqueDates.add(shiftedDate.toDateString());
+        }
+    });
+    numberOfDays = Math.max(1, uniqueDates.size);
+}
 
                     // Apply date filters
                     if (startDate) {
@@ -1948,16 +1961,25 @@ let goalStartDate, goalEndDate;
 if (startDate && endDate) {
     goalStartDate = new Date(startDate);
     goalEndDate = new Date(endDate);
+    console.log(`🎯 Date range: ${goalStartDate.toDateString()} to ${goalEndDate.toDateString()}`);
 } else if (startDate) {
     goalStartDate = new Date(startDate);
     goalEndDate = new Date(startDate);
+    console.log(`🎯 Single start date: ${goalStartDate.toDateString()}`);
 } else if (endDate) {
     goalStartDate = new Date(endDate);
     goalEndDate = new Date(endDate);
+    console.log(`🎯 Single end date: ${goalEndDate.toDateString()}`);
 } else {
     // If no date range selected, use current month
     goalStartDate = new Date(currentYear, currentMonth - 1, 1);
     goalEndDate = new Date(currentYear, currentMonth, 0); // Last day of current month
+    console.log(`🎯 No dates - using current month: ${goalStartDate.toDateString()} to ${goalEndDate.toDateString()}`);
+}
+
+// Important: Ensure endDate is inclusive for same-day scenarios
+if (goalStartDate.toDateString() === goalEndDate.toDateString()) {
+    console.log(`⚠️ Same date detected - ensuring full day coverage`);
 }
 
 // Loop through each month in the date range
@@ -1968,11 +1990,17 @@ while (currentDate <= endMonth) {
     const month = currentDate.getMonth() + 1;
     const year = currentDate.getFullYear();
     
+    // Track which months we're covering
+    displayMonths.add(month);
+    displayYears.add(year);
+    
     // Get assignments for THIS specific month
     const monthAssignments = getEmployeeAssignments(configData.employees, selectedName, month, year);
     
     if (monthAssignments.length > 0) {
         const monthOffices = monthAssignments.map(a => a.office).filter(o => o);
+        
+        console.log(`📅 ${month}/${year} - Offices:`, monthOffices); // Debug log
         
         // Calculate the date range for THIS month only
         const monthStart = new Date(Math.max(currentDate, goalStartDate));
@@ -3223,5 +3251,6 @@ while (currentDate <= endMonth) {
     </script>
 </body>
 </html>
+
 
 
