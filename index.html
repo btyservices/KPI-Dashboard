@@ -1542,169 +1542,225 @@
             const [outboundMetric, setOutboundMetric] = useState('production'); // 'production', 'calls', 'appointments'
 
             const fetchDataFromSheet = async () => {
-                setLoading(true);
-                setError('');
+    setLoading(true);
+    setError('');
+    try {
+        // Load admin config
+        const config = await fetchAdminConfig();
+        setConfigData(config);
+
+        // Fetch main data sheet
+        const url1 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Data!A:I?key=${API_KEY}`;
+        const response1 = await fetch(url1);
+        if (!response1.ok) throw new Error(`Failed to fetch Data sheet: ${response1.statusText}`);
+        const result1 = await response1.json();
+        const rows1 = result1.values || [];
+
+        // Fetch Ins Pmt sheet
+        const url2 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Ins Pmt!A:G?key=${API_KEY}`;
+        const response2 = await fetch(url2);
+        if (!response2.ok) throw new Error(`Failed to fetch Ins Pmt sheet: ${response2.statusText}`);
+        const result2 = await response2.json();
+        const rows2 = result2.values || [];
+
+        // BATCH FETCH: Collection sheets
+        console.log('Fetching collection sheets in batch...');
+        const collectionRanges = COLLECTION_SHEETS.map(sheet => `${sheet}!A:F`).join('&ranges=');
+        const batchUrl1 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_2}/values:batchGet?ranges=${collectionRanges}&key=${API_KEY}`;
+        const batchResponse1 = await fetch(batchUrl1);
+        
+        let collectionResults = [];
+        if (batchResponse1.ok) {
+            const batchResult1 = await batchResponse1.json();
+            collectionResults = COLLECTION_SHEETS.map((sheetName, index) => ({
+                sheetName,
+                rows: batchResult1.valueRanges[index]?.values || []
+            }));
+            console.log('✅ Collection sheets fetched successfully');
+        } else {
+            console.warn('Batch fetch failed for collections, using fallback');
+            // Fallback to individual requests
+            for (const sheetName of COLLECTION_SHEETS) {
                 try {
-                    // Load admin config
-                    const config = await fetchAdminConfig();
-                    setConfigData(config);
-
-                    // Fetch main data sheet
-                    const url1 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Data!A:I?key=${API_KEY}`;
-                    const response1 = await fetch(url1);
-                    if (!response1.ok) throw new Error(`Failed to fetch Data sheet: ${response1.statusText}`);
-                    const result1 = await response1.json();
-                    const rows1 = result1.values || [];
-
-                    // Fetch Ins Pmt sheet
-                    const url2 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Ins Pmt!A:G?key=${API_KEY}`;
-                    const response2 = await fetch(url2);
-                    if (!response2.ok) throw new Error(`Failed to fetch Ins Pmt sheet: ${response2.statusText}`);
-                    const result2 = await response2.json();
-                    const rows2 = result2.values || [];
-
-                    // Fetch collection sheets
-                    const collectionResults = [];
-                    for (const sheetName of COLLECTION_SHEETS) {
-                        try {
-                            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_2}/values/${sheetName}!A:F?key=${API_KEY}`;
-                            const response = await fetch(url);
-                            if (response.ok) {
-                                const result = await response.json();
-                                collectionResults.push({ sheetName, rows: result.values || [] });
-                            } else {
-                                collectionResults.push({ sheetName, rows: [] });
-                            }
-                            await new Promise(resolve => setTimeout(resolve, 100));
-                        } catch (err) {
-                            console.warn(`Failed to fetch ${sheetName}:`, err);
-                            collectionResults.push({ sheetName, rows: [] });
-                        }
+                    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_2}/values/${sheetName}!A:F?key=${API_KEY}`;
+                    const response = await fetch(url);
+                    if (response.ok) {
+                        const result = await response.json();
+                        collectionResults.push({ sheetName, rows: result.values || [] });
+                    } else {
+                        collectionResults.push({ sheetName, rows: [] });
                     }
-
-                    // Fetch production sheets
-                    const productionResults = [];
-                    for (const sheetName of COLLECTION_SHEETS) {
-                        try {
-                            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values/${sheetName}!A:C?key=${API_KEY}`;
-                            const response = await fetch(url);
-                            if (response.ok) {
-                                const result = await response.json();
-                                productionResults.push({ sheetName, rows: result.values || [] });
-                            } else {
-                                productionResults.push({ sheetName, rows: [] });
-                            }
-                            await new Promise(resolve => setTimeout(resolve, 100));
-                        } catch (err) {
-                            console.warn(`Failed to fetch production from ${sheetName}:`, err);
-                            productionResults.push({ sheetName, rows: [] });
-                        }
-                    }
-
-                    // Fetch appointment sheets
-                    const appointmentResults = [];
-                    for (const sheetName of COLLECTION_SHEETS) {
-                        try {
-                            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values/${sheetName}!A:D?key=${API_KEY}`;
-                            const response = await fetch(url);
-                            if (response.ok) {
-                                const result = await response.json();
-                                appointmentResults.push({ sheetName, rows: result.values || [] });
-                            } else {
-                                appointmentResults.push({ sheetName, rows: [] });
-                            }
-                            await new Promise(resolve => setTimeout(resolve, 100));
-                        } catch (err) {
-                            console.warn(`Failed to fetch appointments from ${sheetName}:`, err);
-                            appointmentResults.push({ sheetName, rows: [] });
-                        }
-                    }
-
-                    // Parse main data
-                    const parsedData = rows1.slice(1).map(row => ({
-                        date: row[0] || '', task: row[3] || '', amount: row[4] || '',
-                        collectionAmount: row[5] || '', name: row[8] || '', office: row[2] || '', source: 'Data'
-                    })).filter(row => row.name && row.name.trim() && row.task && row.task.trim() && row.date && row.date.trim());
-
-                    // Parse Ins Pmt data
-                    const parsedInsPmt = rows2.slice(1).map(row => ({
-                        date: row[2] || '', amount: row[4] || '', name: row[6] || '', source: 'InsPmt'
-                    })).filter(row => row.name && row.name.trim() && row.date && row.date.trim() && row.amount && row.amount.toString().trim());
-
-                    // Parse collection data
-                    const parsedCollectionData = [];
-                    collectionResults.forEach(({ sheetName, rows }) => {
-                        if (rows.length > 1) {
-                            rows.slice(1).forEach(row => {
-                                if (row.length >= 6) {
-                                    const rawName = row[5] || '';
-                                    const cleanName = normalizeEmployeeName(rawName);
-                                    const dateValue = row[4] || '';
-                                    const amountValue = row[2] || '';
-                                    if (cleanName && dateValue && amountValue) {
-                                        parsedCollectionData.push({ date: dateValue, amount: amountValue, name: cleanName, source: `Collection-${sheetName}` });
-                                    }
-                                }
-                            });
-                        }
-                    });
-
-                    // Parse production data
-                    const parsedProductionData = [];
-                    productionResults.forEach(({ sheetName, rows }) => {
-                        if (rows.length > 1) {
-                            rows.slice(1).forEach(row => {
-                                if (row.length >= 3) {
-                                    const rawName = row[2] || '';
-                                    const cleanName = normalizeEmployeeName(rawName);
-                                    const dateValue = row[0] || '';
-                                    const amountValue = row[1] || '';
-                                    if (cleanName && dateValue && amountValue) {
-                                        parsedProductionData.push({ date: dateValue, amount: amountValue, name: cleanName, office: sheetName, source: `Production-${sheetName}` });
-                                    }
-                                }
-                            });
-                        }
-                    });
-
-                    // Parse appointment data
-                    const parsedAppointmentData = [];
-                    appointmentResults.forEach(({ sheetName, rows }) => {
-                        if (rows.length > 1) {
-                            rows.slice(1).forEach(row => {
-                                if (row.length >= 4) {
-                                    const rawName = row[2] || '';
-                                    const cleanName = normalizeEmployeeName(rawName);
-                                    const dateValue = row[0] || '';
-                                    const appointmentCount = row[3] || '';
-                                    if (cleanName && dateValue && appointmentCount) {
-                                        const count = parseNumericValue(appointmentCount);
-                                        if (count > 0) {
-                                            parsedAppointmentData.push({ date: dateValue, name: cleanName, count: count, office: sheetName, source: `Appointment-${sheetName}` });
-                                        }
-                                    }
-                                }
-                            });
-                        }
-                    });
-
-                    setData(parsedData);
-                    const combinedInsPmt = [...parsedInsPmt, ...parsedCollectionData];
-                    setInsPmtData(combinedInsPmt);
-                    setProductionData(parsedProductionData);
-                    setAppointmentData(parsedAppointmentData);
-
-                    // Get unique names from config
-                    const names = config.employeeCodes.sort();
-                    setUniqueNames(names);
-
+                    await new Promise(resolve => setTimeout(resolve, 500));
                 } catch (err) {
-                    console.error('Error fetching data:', err);
-                    setError(err.message);
-                } finally {
-                    setLoading(false);
+                    console.warn(`Failed to fetch ${sheetName}:`, err);
+                    collectionResults.push({ sheetName, rows: [] });
                 }
-            };
+            }
+        }
+
+        // Wait 1 second before next batch
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // BATCH FETCH: Production sheets
+        console.log('Fetching production sheets in batch...');
+        const productionRanges = COLLECTION_SHEETS.map(sheet => `${sheet}!A:C`).join('&ranges=');
+        const batchUrl2 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values:batchGet?ranges=${productionRanges}&key=${API_KEY}`;
+        const batchResponse2 = await fetch(batchUrl2);
+        
+        let productionResults = [];
+        if (batchResponse2.ok) {
+            const batchResult2 = await batchResponse2.json();
+            productionResults = COLLECTION_SHEETS.map((sheetName, index) => ({
+                sheetName,
+                rows: batchResult2.valueRanges[index]?.values || []
+            }));
+            console.log('✅ Production sheets fetched successfully');
+        } else {
+            console.warn('Batch fetch failed for production, using fallback');
+            // Fallback to individual requests
+            for (const sheetName of COLLECTION_SHEETS) {
+                try {
+                    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values/${sheetName}!A:C?key=${API_KEY}`;
+                    const response = await fetch(url);
+                    if (response.ok) {
+                        const result = await response.json();
+                        productionResults.push({ sheetName, rows: result.values || [] });
+                    } else {
+                        productionResults.push({ sheetName, rows: [] });
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                } catch (err) {
+                    console.warn(`Failed to fetch production from ${sheetName}:`, err);
+                    productionResults.push({ sheetName, rows: [] });
+                }
+            }
+        }
+
+        // Wait 1 second before next batch
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // BATCH FETCH: Appointment sheets
+        console.log('Fetching appointment sheets in batch...');
+        const appointmentRanges = COLLECTION_SHEETS.map(sheet => `${sheet}!A:D`).join('&ranges=');
+        const batchUrl3 = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values:batchGet?ranges=${appointmentRanges}&key=${API_KEY}`;
+        const batchResponse3 = await fetch(batchUrl3);
+        
+        let appointmentResults = [];
+        if (batchResponse3.ok) {
+            const batchResult3 = await batchResponse3.json();
+            appointmentResults = COLLECTION_SHEETS.map((sheetName, index) => ({
+                sheetName,
+                rows: batchResult3.valueRanges[index]?.values || []
+            }));
+            console.log('✅ Appointment sheets fetched successfully');
+        } else {
+            console.warn('Batch fetch failed for appointments, using fallback');
+            // Fallback to individual requests
+            for (const sheetName of COLLECTION_SHEETS) {
+                try {
+                    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID_3}/values/${sheetName}!A:D?key=${API_KEY}`;
+                    const response = await fetch(url);
+                    if (response.ok) {
+                        const result = await response.json();
+                        appointmentResults.push({ sheetName, rows: result.values || [] });
+                    } else {
+                        appointmentResults.push({ sheetName, rows: [] });
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                } catch (err) {
+                    console.warn(`Failed to fetch appointments from ${sheetName}:`, err);
+                    appointmentResults.push({ sheetName, rows: [] });
+                }
+            }
+        }
+
+        console.log('✅ All data fetched successfully');
+
+        // Parse main data (keep your existing parsing code)
+        const parsedData = rows1.slice(1).map(row => ({
+            date: row[0] || '', task: row[3] || '', amount: row[4] || '',
+            collectionAmount: row[5] || '', name: row[8] || '', office: row[2] || '', source: 'Data'
+        })).filter(row => row.name && row.name.trim() && row.task && row.task.trim() && row.date && row.date.trim());
+
+        // Parse Ins Pmt data (keep existing)
+        const parsedInsPmt = rows2.slice(1).map(row => ({
+            date: row[2] || '', amount: row[4] || '', name: row[6] || '', source: 'InsPmt'
+        })).filter(row => row.name && row.name.trim() && row.date && row.date.trim() && row.amount && row.amount.toString().trim());
+
+        // Parse collection data (keep existing)
+        const parsedCollectionData = [];
+        collectionResults.forEach(({ sheetName, rows }) => {
+            if (rows.length > 1) {
+                rows.slice(1).forEach(row => {
+                    if (row.length >= 6) {
+                        const rawName = row[5] || '';
+                        const cleanName = normalizeEmployeeName(rawName);
+                        const dateValue = row[4] || '';
+                        const amountValue = row[2] || '';
+                        if (cleanName && dateValue && amountValue) {
+                            parsedCollectionData.push({ date: dateValue, amount: amountValue, name: cleanName, source: `Collection-${sheetName}` });
+                        }
+                    }
+                });
+            }
+        });
+
+        // Parse production data (keep existing)
+        const parsedProductionData = [];
+        productionResults.forEach(({ sheetName, rows }) => {
+            if (rows.length > 1) {
+                rows.slice(1).forEach(row => {
+                    if (row.length >= 3) {
+                        const rawName = row[2] || '';
+                        const cleanName = normalizeEmployeeName(rawName);
+                        const dateValue = row[0] || '';
+                        const amountValue = row[1] || '';
+                        if (cleanName && dateValue && amountValue) {
+                            parsedProductionData.push({ date: dateValue, amount: amountValue, name: cleanName, office: sheetName, source: `Production-${sheetName}` });
+                        }
+                    }
+                });
+            }
+        });
+
+        // Parse appointment data (keep existing)
+        const parsedAppointmentData = [];
+        appointmentResults.forEach(({ sheetName, rows }) => {
+            if (rows.length > 1) {
+                rows.slice(1).forEach(row => {
+                    if (row.length >= 4) {
+                        const rawName = row[2] || '';
+                        const cleanName = normalizeEmployeeName(rawName);
+                        const dateValue = row[0] || '';
+                        const appointmentCount = row[3] || '';
+                        if (cleanName && dateValue && appointmentCount) {
+                            const count = parseNumericValue(appointmentCount);
+                            if (count > 0) {
+                                parsedAppointmentData.push({ date: dateValue, name: cleanName, count: count, office: sheetName, source: `Appointment-${sheetName}` });
+                            }
+                        }
+                    }
+                });
+            }
+        });
+
+        setData(parsedData);
+        const combinedInsPmt = [...parsedInsPmt, ...parsedCollectionData];
+        setInsPmtData(combinedInsPmt);
+        setProductionData(parsedProductionData);
+        setAppointmentData(parsedAppointmentData);
+
+        // Get unique names from config
+        const names = config.employeeCodes.sort();
+        setUniqueNames(names);
+
+    } catch (err) {
+        console.error('Error fetching data:', err);
+        setError(err.message);
+    } finally {
+        setLoading(false);
+    }
+};
 
             useEffect(() => { fetchDataFromSheet(); }, []);
 
@@ -1743,6 +1799,7 @@ console.log(`📋 Employee Info - Name: ${selectedName}, Dept: ${primaryAssignme
 
                     // Calculate working days
 let numberOfDays = 1;
+let actualWorkingDays = 1; // NEW: track actual working days separately
 if (startDate && endDate) {
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -1751,16 +1808,20 @@ if (startDate && endDate) {
     if (start.toDateString() === end.toDateString()) {
         // For same date, check if it's a weekday
         const dayOfWeek = start.getDay();
-        numberOfDays = (dayOfWeek >= 1 && dayOfWeek <= 5) ? 1 : 0;
-        console.log(`📆 Same date selected: ${start.toDateString()}, working days: ${numberOfDays}`);
+        actualWorkingDays = (dayOfWeek >= 1 && dayOfWeek <= 5) ? 1 : 0;
+        numberOfDays = Math.max(1, actualWorkingDays); // Always at least 1 for display
+        console.log(`📆 Same date selected: ${start.toDateString()}, is weekday: ${actualWorkingDays === 1}, day: ${dayOfWeek}`);
     } else {
-        numberOfDays = Math.max(1, countWorkingDays(start, end));
+        actualWorkingDays = countWorkingDays(start, end);
+        numberOfDays = Math.max(1, actualWorkingDays);
     }
 } else if (startDate || endDate) {
     const singleDate = new Date(startDate || endDate);
     const dayOfWeek = singleDate.getDay();
-    numberOfDays = (dayOfWeek >= 1 && dayOfWeek <= 5) ? 1 : 0;
+    actualWorkingDays = (dayOfWeek >= 1 && dayOfWeek <= 5) ? 1 : 0;
+    numberOfDays = Math.max(1, actualWorkingDays);
 } else {
+    // No date filter - count unique working days from data
     const uniqueDates = new Set();
     filtered.forEach(row => {
         const rowDate = parseDate(row.date);
@@ -1776,8 +1837,11 @@ if (startDate && endDate) {
             if (shiftedDate) uniqueDates.add(shiftedDate.toDateString());
         }
     });
-    numberOfDays = Math.max(1, uniqueDates.size);
+    actualWorkingDays = Math.max(1, uniqueDates.size);
+    numberOfDays = actualWorkingDays;
 }
+
+console.log(`📊 Working days: ${actualWorkingDays}, Display days: ${numberOfDays}`);
 
                     // Apply date filters
                     if (startDate) {
@@ -1985,7 +2049,18 @@ const lastDayOfMonth = new Date(year, month, 0);
 const monthStart = goalStartDate > firstDayOfMonth ? new Date(goalStartDate) : firstDayOfMonth;
 const monthEnd = goalEndDate < lastDayOfMonth ? new Date(goalEndDate) : lastDayOfMonth;
         
-        const daysInThisMonth = countWorkingDays(monthStart, monthEnd);
+        let daysInThisMonth = countWorkingDays(monthStart, monthEnd);
+
+// For single-day selections, use actualWorkingDays instead
+if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (start.toDateString() === end.toDateString()) {
+        daysInThisMonth = actualWorkingDays;
+    }
+}
+
+console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`);
         
         // NEW: Calculate AVERAGE goal for this month, then add to total
         if (monthOffices.length > 0) {
@@ -3244,6 +3319,7 @@ const monthEnd = goalEndDate < lastDayOfMonth ? new Date(goalEndDate) : lastDayO
     </script>
 </body>
 </html>
+
 
 
 
