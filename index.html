@@ -128,7 +128,7 @@
         Object.entries(taskMapping).forEach(([original, standard]) => { taskLookup[original] = standard; });
 
         // Employee name normalization
-        
+        const employeeNameMapping = {
             'ADIVINAGRACIA': 'AD', 'ADIVINA': 'AD', '**AD': 'AD', 'ABARIOGA': 'AB', '**AB': 'AB',
             'BZARATE': 'BZ', '**BZ': 'BZ', 'GAGBUYA': 'GA', 'ISECONG': 'IS', 'HBAGAPORO': 'HGB',
             'JARREY': 'JA', 'RDELAPAZ': 'RD', 'KMAPAIT': 'KPM', 'GGUJILDE': 'GG', 'JMORTIZ': 'JM',
@@ -143,11 +143,11 @@
             'EMPANGILINAN': 'EMP', 'JCUNANAN': 'JC', 'BMANALO': 'BM', 'PBENITEZ': 'PB',
             'NZAMBRANO': 'NZ', 'VLAGAN': 'VL', 'ISTACRUZ': 'ISC', 'LLAGAN': 'LL',
             'EDORONIO': 'ED', 'LVILLARES': 'LV', 'SSALVEJO': 'SMS', 'CCAPISPISAN': 'CDC',
-            'JCADAVEZ': 'JRC', 'ADAUMAR': 'AMD', 'HALFONSO': 'HMA', 'JOGARIO': 'JP',
-            'IMORGADO': 'IM', 'GPAYORAN': 'GP', 'WMEJARES': 'WM', 'RGUAVES': 'RG',
+            'ADAUMAR': 'AMD', 'HALFONSO': 'HMA', 'JOGARIO': 'JP',
+            'IMORGADO': 'IM', 'WMEJARES': 'WM', 'RGUAVES': 'RG',
             'CCAPOY': 'CC', 'JINCENZO': 'JI', 'GDELACRUZ': 'GD',
-            'CFAJARDO': 'CF', 'GZAMORA': 'GZ', 'JCBAUTISTA': 'JCB', 'JTLOPEZ': 'JTL',
-            'KRIVERA': 'KR', 'MLCASTRO': 'MLC', 'RSANTOS': 'RS', 'BDZULETA': 'BDZ'
+            'CFAJUTAG': 'CF', 'JCBONOSTRO': 'JCB', 'JTLUCING': 'JTL',
+            'KREGALADO': 'KR', 'MLCUYOG': 'MLC', 'BDZAPANTA': 'BDZ'
         };
 
         // Helper Functions
@@ -193,29 +193,32 @@
         };
 
         const parseDate = (dateStr) => {
-            if (!dateStr) return null;
-            let dateOnly = dateStr.toString().trim();
-            if (dateOnly.includes(' ')) dateOnly = dateOnly.split(' ')[0];
-            if (dateOnly.includes('-')) {
-                const parts = dateOnly.split('-');
-                if (parts.length === 3) {
-                    const year = parseInt(parts[0], 10);
-                    const month = parseInt(parts[1], 10) - 1;
-                    const day = parseInt(parts[2], 10);
-                    return new Date(year, month, day, 12, 0, 0, 0);
-                }
-            }
-            if (dateOnly.includes('/')) {
-                const parts = dateOnly.split('/');
-                if (parts.length === 3) {
-                    const month = parseInt(parts[0], 10) - 1;
-                    const day = parseInt(parts[1], 10);
-                    const year = parseInt(parts[2], 10);
-                    return new Date(year, month, day, 12, 0, 0, 0);
-                }
-            }
-            return null;
-        };
+    if (!dateStr) return null;
+    let dateOnly = dateStr.toString().trim();
+    if (dateOnly.includes(' ')) dateOnly = dateOnly.split(' ')[0];
+    
+    if (dateOnly.includes('-')) {
+        const parts = dateOnly.split('-');
+        if (parts.length === 3) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const day = parseInt(parts[2], 10);
+            // Use UTC to avoid timezone shifts
+            return new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+        }
+    }
+    if (dateOnly.includes('/')) {
+        const parts = dateOnly.split('/');
+        if (parts.length === 3) {
+            const month = parseInt(parts[0], 10) - 1;
+            const day = parseInt(parts[1], 10);
+            const year = parseInt(parts[2], 10);
+            // Use UTC to avoid timezone shifts
+            return new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+        }
+    }
+    return null;
+};
 
         const shiftWeekendToWeekday = (date) => {
             if (!date) return null;
@@ -3324,6 +3327,7 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
     </script>
 </body>
 </html>
+
 
 
 
