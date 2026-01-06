@@ -1720,41 +1720,13 @@
 const assignments = getEmployeeAssignments(configData.employees, selectedName, currentMonth, currentYear);
 
 if (assignments.length === 0) {
-    // Return immediately to prevent infinite loop
-    return {
-        taskCounts: [], 
-        unlistedTasks: [], 
-        taskPercentages: {},
-        totalCollectionAmount: '0.00',
-        totalProductionAmount: '0.00',
-        collectionPercentage: '0.0',
-        productionPercentage: '0.0',
-        appointmentPercentage: '0.0',
-        verificationPercentage: '0.0',
-        overallPerformance: 0,
-        totalTasks: 0, 
-        department: 'Not Assigned', 
-        state: 'Not Assigned',
-        offices: [],
-        totalAppointments: 0, 
-        totalCalls: 0, 
-        totalCompletedAppointments: 0, 
-        numberOfDays: 1,
-        appointmentGoal: 0,
-        callGoal: 0,
-        collectionGoal: 0,
-        productionGoal: 0,
-        verificationCount: 0,
-        verificationGoal: 0,
-        performanceChartData: [], 
-        dateRangeType: 'daily',
-        pieChartData: [],
-        radarChartData: []
-    };
+    // ... return early ...
 }
 
 const primaryAssignment = assignments[0]; // Use most recent assignment for department/state
-const assignedOffices = assignments.map(a => a.office).filter(o => o);
+
+// Get unique offices only (remove duplicates)
+const assignedOffices = [...new Set(assignments.map(a => a.office).filter(o => o))];
 
 console.log(`📋 Employee Info - Name: ${selectedName}, Dept: ${primaryAssignment.department}, State: ${primaryAssignment.state}, Offices: ${assignedOffices.join(', ')}`);
 
@@ -2007,11 +1979,11 @@ while (currentDate <= endMonth) {
         console.log(`📅 ${month}/${year} - Offices:`, monthOffices);
         
         // Calculate the date range for THIS month only
-        const monthStart = new Date(Math.max(currentDate, goalStartDate));
-        const monthEnd = new Date(Math.min(
-            new Date(year, month, 0), // Last day of this month
-            goalEndDate
-        ));
+const firstDayOfMonth = new Date(year, month - 1, 1);
+const lastDayOfMonth = new Date(year, month, 0);
+
+const monthStart = goalStartDate > firstDayOfMonth ? new Date(goalStartDate) : firstDayOfMonth;
+const monthEnd = goalEndDate < lastDayOfMonth ? new Date(goalEndDate) : lastDayOfMonth;
         
         const daysInThisMonth = countWorkingDays(monthStart, monthEnd);
         
@@ -3272,6 +3244,7 @@ while (currentDate <= endMonth) {
     </script>
 </body>
 </html>
+
 
 
 
