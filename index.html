@@ -2282,14 +2282,24 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                                     return inRange;
                                 }).reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
                                 
-                                const officeAppts = performance.totalAppointments;
-                                
-                                // Calls aren't tracked by office in the data, so distribute proportionally
-                                const callRatio = officeData.call / callGoal;
-                                const officeCalls = totalCalls * callRatio;
-                                
-                                const prodPerf = officeData.production > 0 ? (officeProduction / officeData.production) * 100 : 0;
-                                const apptPerf = officeData.appointment > 0 ? (officeAppointments / officeData.appointment) * 100 : 0;
+                                // Calculate office appointments from Sheet 1 data
+const officeAppts = data.filter(row => {
+    const normalized = normalizeEmployeeName(row.name);
+    const rowDate = parseDate(row.date);
+    const standardTaskName = findTaskName(row.task.trim());
+    let inRange = normalized === selectedName && row.office === office;
+    if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+    if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+    return inRange && (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt' || 
+                       standardTaskName === 'Inbound Text Appt' || standardTaskName === 'Outbound Text Appt');
+}).reduce((sum, row) => sum + (parseNumericValue(row.amount) || 1), 0);
+
+// Calls aren't tracked by office in the data, so distribute proportionally
+const callRatio = officeData.call / callGoal;
+const officeCalls = totalCalls * callRatio;
+
+const prodPerf = officeData.production > 0 ? (officeProduction / officeData.production) * 100 : 0;
+const apptPerf = officeData.appointment > 0 ? (officeAppts / officeData.appointment) * 100 : 0;
                                 const callPerf = officeData.call > 0 ? (officeCalls / officeData.call) * 100 : 0;
                                 
                                 const officePerf = (prodPerf + apptPerf + callPerf) / 3;
@@ -7368,6 +7378,7 @@ const officeAppts = data.filter(row => {
     </script>
 </body>
 </html>
+
 
 
 
