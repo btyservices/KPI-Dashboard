@@ -1618,6 +1618,7 @@
             // Chart options state
             const [pieChartScope, setPieChartScope] = useState('state'); // 'state' or 'overall'
             const [outboundMetric, setOutboundMetric] = useState('production'); // 'production', 'calls', 'appointments'
+            const [showBreakdown, setShowBreakdown] = useState(null); // 'production', 'collection', 'appointments', 'performance'
 
             const fetchDataFromSheet = async () => {
     setLoading(true);
@@ -2895,6 +2896,124 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
         };
 
         const perfColor = performance ? getPerformanceColor(performance.overallPerformance) : null;
+            // Breakdown Modal Component
+const BreakdownModal = ({ type, performance, onClose }) => {
+    if (!type || !performance) return null;
+    
+    let title = '';
+    let breakdownData = [];
+    
+    if (type === 'production') {
+        title = 'Production Breakdown by Office';
+        // Get production per office
+        performance.offices.forEach(office => {
+            const officeProduction = productionData.filter(row => {
+                const normalized = normalizeEmployeeName(row.name);
+                const rowDate = parseDate(row.date);
+                let inRange = normalized === selectedName && row.office === office;
+                if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+                if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+                return inRange;
+            }).reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
+            
+            breakdownData.push({ office, value: officeProduction, isAmount: true });
+        });
+    } else if (type === 'collection') {
+        title = 'Collection Breakdown by Office';
+        // For collection, we need to distribute proportionally since we don't track by office
+        const totalCollection = parseFloat(performance.totalCollectionAmount);
+        performance.offices.forEach(office => {
+            const officeGoal = getGoalForOffice(configData.goals, 'AR Department', office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear());
+            const proportion = officeGoal / performance.collectionGoal;
+            const officeCollection = totalCollection * proportion;
+            breakdownData.push({ office, value: officeCollection, isAmount: true, isEstimate: true });
+        });
+    } else if (type === 'appointments') {
+        title = 'Completed Appointments by Office';
+        performance.offices.forEach(office => {
+            const officeAppointments = appointmentData.filter(row => {
+                const normalized = normalizeEmployeeName(row.name);
+                const rowDate = parseDate(row.date);
+                let inRange = normalized === selectedName && row.office === office;
+                if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+                if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+                return inRange;
+            }).reduce((sum, row) => sum + (row.count || 0), 0);
+            
+            breakdownData.push({ office, value: officeAppointments, isAmount: false });
+        });
+    } else if (type === 'performance') {
+        title = 'Overall Performance Breakdown';
+        
+        if (performance.department === 'Outbound Department') {
+            breakdownData.push(
+                { label: 'Production Performance', value: (parseFloat(performance.totalProductionAmount) / performance.productionGoal) * 100 },
+                { label: 'Appointment Performance', value: (performance.totalCompletedAppointments / performance.appointmentGoal) * 100 },
+                { label: 'Call Performance', value: (performance.totalCalls / performance.callGoal) * 100 }
+            );
+        } else if (performance.department === 'AR Department') {
+            breakdownData.push(
+                { label: 'Collection Performance', value: (parseFloat(performance.totalCollectionAmount) / performance.collectionGoal) * 100 }
+            );
+        } else if (performance.department === 'Verification Department') {
+            breakdownData.push(
+                { label: 'Verification Performance', value: (performance.verificationCount / performance.verificationGoal) * 100 }
+            );
+        }
+    }
+    
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop" onClick={onClose}>
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-8 border border-slate-600 shadow-2xl max-w-2xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-white">{title}</h2>
+                    <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div className="space-y-3">
+                    {breakdownData.map((item, index) => (
+                        <div key={index} className="bg-slate-700/40 rounded-lg p-4 border border-slate-600/50">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-white font-semibold">{item.office || item.label}</h3>
+                                    {item.isEstimate && <p className="text-slate-400 text-xs mt-1">*Estimated based on goal proportion</p>}
+                                </div>
+                                <div className="text-right">
+                                    {item.isAmount !== undefined ? (
+                                        <p className="text-2xl font-bold text-cyan-400">
+                                            {item.isAmount ? `$${item.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : item.value}
+                                        </p>
+                                    ) : (
+                                        <p className="text-2xl font-bold text-cyan-400">{item.value.toFixed(1)}%</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    
+                    {breakdownData.length === 0 && (
+                        <div className="text-center py-8 text-slate-400">
+                            <p>No breakdown data available</p>
+                        </div>
+                    )}
+                </div>
+                
+                {type === 'performance' && (
+                    <div className="mt-6 p-4 bg-cyan-900/20 border border-cyan-700/30 rounded-lg">
+                        <p className="text-cyan-300 text-sm">
+                            <strong>Overall Performance:</strong> Average of all metrics = {performance.overallPerformance}%
+                        </p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
         useEffect(() => {
     if (!selectedName) {
@@ -3008,7 +3127,7 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                         {!loading && performance && selectedName && (
                             <div className="space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                    <div className="bg-gradient-to-br from-slate-800 via-slate-800 to-cyan-900/20 rounded-2xl p-6 border border-cyan-500/30 hover:border-cyan-400 hover:shadow-2xl hover:shadow-cyan-500/20 transition-all relative overflow-hidden group">
+                                    <div cla<div onClick={() => performance.department === 'Outbound Department' ? setShowBreakdown('production') : performance.department === 'AR Department' ? setShowBreakdown('collection') : null} className="bg-gradient-to-br from-slate-800 via-slate-800 to-cyan-900/20 rounded-2xl p-6 border border-cyan-500/30 hover:border-cyan-400 hover:shadow-2xl hover:shadow-cyan-500/20 transition-all relative overflow-hidden group cursor-pointer">
                                         <div className="absolute top-0 right-0 w-40 h-40 bg-cyan-500/10 rounded-full -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-500"></div>
                                         <div className="relative z-10">
                                             <div className="flex items-center gap-3 mb-4">
@@ -3063,7 +3182,7 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                                     </div>
 
                                     {performance.department === 'Outbound Department' && (
-                                        <div className="bg-gradient-to-br from-slate-800 via-slate-800 to-amber-900/20 rounded-2xl p-6 border border-amber-500/30 hover:border-amber-400 hover:shadow-2xl hover:shadow-amber-500/20 transition-all relative overflow-hidden group">
+    <div onClick={() => setShowBreakdown('appointments')} className="bg-gradient-to-br from-slate-800 via-slate-800 to-amber-900/20 rounded-2xl p-6 border border-amber-500/30 hover:border-amber-400 hover:shadow-2xl hover:shadow-amber-500/20 transition-all relative overflow-hidden group cursor-pointer">
                                             <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-500"></div>
                                             <div className="relative z-10">
                                                 <div className="flex items-center gap-3 mb-4">
@@ -3087,7 +3206,7 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                                     )}
 
                                     {perfColor && (
-                                        <div className={`bg-gradient-to-br ${perfColor.bg} rounded-2xl p-6 border-2 ${perfColor.border} hover:shadow-2xl transition-all relative overflow-hidden group shadow-xl`}>
+    <div onClick={() => setShowBreakdown('performance')} className={`bg-gradient-to-br ${perfColor.bg} rounded-2xl p-6 border-2 ${perfColor.border} hover:shadow-2xl transition-all relative overflow-hidden group shadow-xl cursor-pointer`}>
                                             <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-500"></div>
                                             <div className="relative z-10">
                                                 <div className="flex items-center gap-3 mb-4">
@@ -3352,6 +3471,13 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                             </div>
                         </div>
                     )}
+                    {showBreakdown && performance && (
+                        <BreakdownModal 
+                            type={showBreakdown}
+                            performance={performance}
+                            onClose={() => setShowBreakdown(null)}
+                        />
+                    )}
                 </div>
             );
         };
@@ -3360,6 +3486,7 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
     </script>
 </body>
 </html>
+
 
 
 
