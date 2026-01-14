@@ -3057,33 +3057,9 @@ const handleCardClick = (type) => {
             office: 'Patient Collection',
             value: `$${patientCollectionTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             goal: null,
-            percentage: null,
-            isPatient: true
+            percentage: null
         });
         totalCollection += patientCollectionTotal;
-    }
-    
-    // Get InsPmt data
-    const insPmtData_filtered = insPmtData.filter(row => {
-        const normalized = normalizeEmployeeName(row.name);
-        const rowDate = parseDate(row.date);
-        let inRange = normalized === selectedName && row.source === 'InsPmt';
-        if (startDate) inRange = inRange && rowDate >= new Date(startDate);
-        if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-        return inRange;
-    });
-    
-    const insPmtTotal = insPmtData_filtered.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
-    
-    if (insPmtTotal > 0) {
-        items.push({
-            office: 'Insurance Payment',
-            value: `$${insPmtTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-            goal: null,
-            percentage: null,
-            isPatient: true
-        });
-        totalCollection += insPmtTotal;
     }
     
     // Get office-specific collection from API collection sheets
@@ -3114,11 +3090,10 @@ const handleCardClick = (type) => {
             const percentage = officeGoalDisplay > 0 ? (officeCollectionAmount / officeGoalDisplay * 100).toFixed(1) : '0.0';
             
             items.push({
-                office: `${office} Collection`,
+                office: office,
                 value: `$${officeCollectionAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                 goal: `$${officeGoalDisplay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                percentage: percentage,
-                isPatient: false
+                percentage: percentage
             });
             totalCollection += officeCollectionAmount;
         }
@@ -3129,37 +3104,6 @@ const handleCardClick = (type) => {
         total: `$${totalCollection.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     };
 }
-    else if (type === 'production') {
-        const items = [];
-        let totalProduction = 0;
-        
-        performance.offices.forEach(office => {
-            const officeProduction = productionData.filter(row => {
-                const normalized = normalizeEmployeeName(row.name);
-                const rowDate = parseDate(row.date);
-                let inRange = normalized === selectedName && row.office === office;
-                if (startDate) inRange = inRange && rowDate >= new Date(startDate);
-                if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-                return inRange;
-            }).reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
-            
-            totalProduction += officeProduction;
-            const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Production', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
-            const percentage = officeGoal > 0 ? (officeProduction / officeGoal * 100).toFixed(1) : '0.0';
-            
-            items.push({
-                office: office,
-                value: `$${officeProduction.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                goal: `$${officeGoal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                percentage: percentage
-            });
-        });
-        
-        breakdown = {
-            items: items,
-            total: `$${totalProduction.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        };
-    }
     else if (type === 'appointments') {
         const items = [];
         let totalAppts = 0;
@@ -3783,6 +3727,7 @@ const officeAppts = data.filter(row => {
     </script>
 </body>
 </html>
+
 
 
 
