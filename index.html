@@ -2282,8 +2282,7 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                                     return inRange;
                                 }).reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
                                 
-                                const apptGoalRatio = officeData.appointment / appointmentGoal;
-                                const officeAppointments = totalAppointments * apptGoalRatio;
+                                const officeAppts = performance.totalAppointments;
                                 
                                 // Calls aren't tracked by office in the data, so distribute proportionally
                                 const callRatio = officeData.call / callGoal;
@@ -3727,6 +3726,7 @@ const officeAppts = data.filter(row => {
     </script>
 </body>
 </html>
+
 
 
 
