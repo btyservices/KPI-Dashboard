@@ -3165,14 +3165,17 @@ const handleCardClick = (type) => {
         let totalAppts = 0;
         
         performance.offices.forEach(office => {
-            const officeAppts = appointmentData.filter(row => {
-                const normalized = normalizeEmployeeName(row.name);
-                const rowDate = parseDate(row.date);
-                let inRange = normalized === selectedName && row.office === office;
-                if (startDate) inRange = inRange && rowDate >= new Date(startDate);
-                if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-                return inRange;
-            }).reduce((sum, row) => sum + (row.count || 0), 0);
+            // Get appointments from Data sheet (main sheet with tasks)
+const officeAppts = data.filter(row => {
+    const normalized = normalizeEmployeeName(row.name);
+    const rowDate = parseDate(row.date);
+    const standardTaskName = findTaskName(row.task.trim());
+    let inRange = normalized === selectedName && row.office === office;
+    if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+    if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+    return inRange && (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt' || 
+                       standardTaskName === 'Inbound Text Appt' || standardTaskName === 'Outbound Text Appt');
+}).reduce((sum, row) => sum + (parseNumericValue(row.amount) || 1), 0);
             
             totalAppts += officeAppts;
             const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Appointment', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
@@ -3241,14 +3244,17 @@ const handleCardClick = (type) => {
                     value: `$${officeProduction.toFixed(2)} / $${prodGoal.toFixed(2)} (${prodPerf.toFixed(1)}%)`
                 });
                 
-                const officeAppts = appointmentData.filter(row => {
-                    const normalized = normalizeEmployeeName(row.name);
-                    const rowDate = parseDate(row.date);
-                    let inRange = normalized === selectedName && row.office === office;
-                    if (startDate) inRange = inRange && rowDate >= new Date(startDate);
-                    if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-                    return inRange;
-                }).reduce((sum, row) => sum + (row.count || 0), 0);
+                // Get appointments from Data sheet (main sheet with tasks)
+const officeAppts = data.filter(row => {
+    const normalized = normalizeEmployeeName(row.name);
+    const rowDate = parseDate(row.date);
+    const standardTaskName = findTaskName(row.task.trim());
+    let inRange = normalized === selectedName && row.office === office;
+    if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+    if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+    return inRange && (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt' || 
+                       standardTaskName === 'Inbound Text Appt' || standardTaskName === 'Outbound Text Appt');
+}).reduce((sum, row) => sum + (parseNumericValue(row.amount) || 1), 0);
                 
                 const apptGoal = getGoalForOffice(configData.goals, performance.department, office, 'Appointment', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
                 const apptPerf = apptGoal > 0 ? (officeAppts / apptGoal * 100) : 0;
@@ -3777,6 +3783,7 @@ const handleCardClick = (type) => {
     </script>
 </body>
 </html>
+
 
 
 
