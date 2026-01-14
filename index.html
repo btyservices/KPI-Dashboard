@@ -2282,14 +2282,8 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                                     return inRange;
                                 }).reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
                                 
-                                let officeAppointments = appointmentData.filter(row => {
-                                    const normalized = normalizeEmployeeName(row.name);
-                                    const rowDate = parseDate(row.date);
-                                    let inRange = normalized === selectedName && row.office === office;
-                                    if (startDate) inRange = inRange && rowDate >= new Date(startDate);
-                                    if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-                                    return inRange;
-                                }).reduce((sum, row) => sum + (row.count || 0), 0);
+                                const apptGoalRatio = officeData.appointment / appointmentGoal;
+                                const officeAppointments = totalAppointments * apptGoalRatio;
                                 
                                 // Calls aren't tracked by office in the data, so distribute proportionally
                                 const callRatio = officeData.call / callGoal;
@@ -2617,17 +2611,44 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                         ];
                     } else if (userDepartment === 'AR Department') {
                         // AR Department task categories
-                        const billerTasks = (taskCounts['Batching Claims'] || 0) + 
-                                           (taskCounts['Sending Private Claims'] || 0) + 
-                                           (taskCounts['Sending Medicaid Claims'] || 0) +
-                                           (taskCounts['Billing Call'] || 0) +
-                                           (taskCounts['Outstanding Claims'] || 0);
-                        const posterTasks = (taskCounts['Entering Payments'] || 0) + 
-                                           (taskCounts['Entering EOBs'] || 0) +
-                                           (taskCounts['Processing CC Payments'] || 0);
-                        const doctorPayroll = taskCounts['Doctor Payroll'] || 0;
-                        const credentialing = taskCounts['Credentialing'] || 0;
-                        const otherTasks = totalTasks - billerTasks - posterTasks - doctorPayroll - credentialing;
+                        const billerTaskNames = [
+                            'Aging- Closed Denied Claims', 'Aging- Closed Paid Claims', 'Aging- Resubmit Claims',
+                            'Aging- Review Claims', 'Aging- Voided Claims', 'Batching Claims', 'Batching Statement',
+                            'Claims Attachments', 'Claims Not Sent', 'Compliance', 'Procedure Not Billed (Sent/Batched)',
+                            'Receiving Pre-Determination (PA)', 'Receiving Service Authorization (SA)', 'Rejected Claims Resubmission',
+                            'Sending Appeal/MJ', 'Sending Medicaid Claims', 'Sending Private Claims', 
+                            'Sending Pre-Determination (PA)', 'Sending Service Authorization (SA)', 'Sending Statements',
+                            'Sending to Collection Agency', 'Submitting Denied/Refund Letters',
+                            'Outstanding Claims', 'Billing Call', 'Receiving PA/SA', 'Sending Claims'
+                        ];
+                        
+                        const posterTaskNames = [
+                            'Entering EOBs', 'Entering Kleer Payments', 'Entering Payments', 'FA Set-up',
+                            'Kleer Set-up', 'Processing CC Payments', 'Retrieving EOBs/eChecks'
+                        ];
+                        
+                        const excludedTasks = ['Total Balance Collected', 'Total Completed Production', 'Total Confirmed Appts'];
+                        
+                        let billerTasks = 0;
+                        let posterTasks = 0;
+                        let doctorPayroll = taskCounts['Doctor Payroll'] || 0;
+                        let credentialing = taskCounts['Credentialing'] || 0;
+                        let otherTasks = 0;
+                        
+                        Object.entries(taskCounts).forEach(([taskName, count]) => {
+                            if (billerTaskNames.includes(taskName)) {
+                                billerTasks += count;
+                            } else if (posterTaskNames.includes(taskName)) {
+                                posterTasks += count;
+                            } else if (taskName === 'Doctor Payroll') {
+                                // already counted
+                            } else if (taskName === 'Credentialing') {
+                                // already counted
+                            } else if (!excludedTasks.includes(taskName)) {
+                                otherTasks += count;
+                            }
+                        });
+                        
                         radarChartData = [
                             { label: 'Biller Tasks', value: billerTasks },
                             { label: 'Poster Tasks', value: posterTasks },
@@ -3016,25 +3037,58 @@ const handleCardClick = (type) => {
     const items = [];
     let totalCollection = 0;
     
+    // Get patient collection from main data sheet (total balance collected task)
+    let patientCollectionTotal = 0;
+    const patientCollectionData = data.filter(row => {
+        const normalized = normalizeEmployeeName(row.name);
+        const rowDate = parseDate(row.date);
+        let inRange = normalized === selectedName;
+        if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+        if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+        return inRange && row.task.trim().toLowerCase() === 'total balance collected';
+    });
+    
+    patientCollectionData.forEach(row => {
+        patientCollectionTotal += parseNumericValue(row.collectionAmount);
+    });
+    
+    if (patientCollectionTotal > 0) {
+        items.push({
+            office: 'Patient Collection',
+            value: `$${patientCollectionTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            goal: null,
+            percentage: null,
+            isPatient: true
+        });
+        totalCollection += patientCollectionTotal;
+    }
+    
+    // Get InsPmt data
+    const insPmtData_filtered = insPmtData.filter(row => {
+        const normalized = normalizeEmployeeName(row.name);
+        const rowDate = parseDate(row.date);
+        let inRange = normalized === selectedName && row.source === 'InsPmt';
+        if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+        if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+        return inRange;
+    });
+    
+    const insPmtTotal = insPmtData_filtered.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
+    
+    if (insPmtTotal > 0) {
+        items.push({
+            office: 'Insurance Payment',
+            value: `$${insPmtTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            goal: null,
+            percentage: null,
+            isPatient: true
+        });
+        totalCollection += insPmtTotal;
+    }
+    
+    // Get office-specific collection from API collection sheets
     performance.offices.forEach(office => {
-        let officeCollection = 0;
-        
-        // Get collection from main data sheet (total balance collected task)
-        const officeDataMain = data.filter(row => {
-            const normalized = normalizeEmployeeName(row.name);
-            const rowDate = parseDate(row.date);
-            let inRange = normalized === selectedName && row.office === office;
-            if (startDate) inRange = inRange && rowDate >= new Date(startDate);
-            if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-            return inRange && row.task.trim().toLowerCase() === 'total balance collected';
-        });
-        
-        officeDataMain.forEach(row => {
-            officeCollection += parseNumericValue(row.collectionAmount);
-        });
-        
-        // Get collection from InsPmt and Collection sheets
-        const officeDataInsPmt = insPmtData.filter(row => {
+        const officeDataCollection = insPmtData.filter(row => {
             const normalized = normalizeEmployeeName(row.name);
             const rowDate = parseDate(row.date);
             let inRange = normalized === selectedName;
@@ -3043,12 +3097,6 @@ const handleCardClick = (type) => {
             if (row.source && row.source.includes('Collection-')) {
                 const sourceOffice = row.source.replace('Collection-', '');
                 inRange = inRange && sourceOffice === office;
-            } else if (row.source === 'InsPmt') {
-                // For InsPmt source, distribute proportionally based on goals
-                const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear());
-                if (officeGoal === 0) {
-                    inRange = false;
-                }
             } else {
                 inRange = false;
             }
@@ -3058,33 +3106,22 @@ const handleCardClick = (type) => {
             return inRange;
         });
         
-        officeDataInsPmt.forEach(row => {
-            const amount = parseNumericValue(row.amount);
-            if (row.source === 'InsPmt') {
-                // Distribute InsPmt proportionally
-                const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear());
-                const totalGoal = performance.collectionGoal;
-                if (totalGoal > 0 && officeGoal > 0) {
-                    const ratio = (officeGoal * performance.numberOfDays) / totalGoal;
-                    officeCollection += amount * ratio;
-                }
-            } else {
-                // Direct collection from API
-                officeCollection += amount;
-            }
-        });
+        const officeCollectionAmount = officeDataCollection.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
         
-        totalCollection += officeCollection;
-        const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear());
-        const officeGoalDisplay = officeGoal * performance.numberOfDays;
-        const percentage = officeGoalDisplay > 0 ? (officeCollection / officeGoalDisplay * 100).toFixed(1) : '0.0';
-        
-        items.push({
-            office: office,
-            value: `$${officeCollection.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-            goal: `$${officeGoalDisplay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-            percentage: percentage
-        });
+        if (officeCollectionAmount > 0) {
+            const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear());
+            const officeGoalDisplay = officeGoal * performance.numberOfDays;
+            const percentage = officeGoalDisplay > 0 ? (officeCollectionAmount / officeGoalDisplay * 100).toFixed(1) : '0.0';
+            
+            items.push({
+                office: `${office} Collection`,
+                value: `$${officeCollectionAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                goal: `$${officeGoalDisplay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                percentage: percentage,
+                isPatient: false
+            });
+            totalCollection += officeCollectionAmount;
+        }
     });
     
     breakdown = {
@@ -3740,6 +3777,7 @@ const handleCardClick = (type) => {
     </script>
 </body>
 </html>
+
 
 
 
