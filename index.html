@@ -1613,6 +1613,7 @@
             const [uniqueNames, setUniqueNames] = useState([]);
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState('');
+            const [performance, setPerformance] = useState(null);
             
             // Chart options state
             const [pieChartScope, setPieChartScope] = useState('state'); // 'state' or 'overall'
@@ -2893,9 +2894,17 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
             }
         };
 
-        const performance = calculatePerformance();
         const perfColor = performance ? getPerformanceColor(performance.overallPerformance) : null;
 
+        useEffect(() => {
+    if (!selectedName) {
+        setPerformance(null);
+        return;
+    }
+    
+    const result = calculatePerformance();
+    setPerformance(result);
+}, [selectedName, startDate, endDate, data, insPmtData, productionData, appointmentData, configData, pieChartScope, outboundMetric]);
         // Admin handlers
         const handleAdminClick = () => {
             setShowPasswordModal(true);
@@ -3351,6 +3360,7 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
     </script>
 </body>
 </html>
+
 
 
 
