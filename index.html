@@ -3013,54 +3013,85 @@ const handleCardClick = (type) => {
     let breakdown = null;
     
     if (type === 'collection') {
-        const items = [];
-        let totalCollection = 0;
+    const items = [];
+    let totalCollection = 0;
+    
+    performance.offices.forEach(office => {
+        let officeCollection = 0;
         
-        performance.offices.forEach(office => {
-            let officeCollection = 0;
-            
-            const officeData = data.filter(row => {
-                const normalized = normalizeEmployeeName(row.name);
-                const rowDate = parseDate(row.date);
-                let inRange = normalized === selectedName && row.office === office;
-                if (startDate) inRange = inRange && rowDate >= new Date(startDate);
-                if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-                return inRange && row.task.trim().toLowerCase() === 'total balance collected';
-            });
-            
-            officeData.forEach(row => {
-                officeCollection += parseNumericValue(row.collectionAmount);
-            });
-            
-            const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear());
-            const totalGoal = performance.collectionGoal;
-            if (totalGoal > 0) {
-                const ratio = (officeGoal * performance.numberOfDays) / totalGoal;
-                const insPmtTotal = parseFloat(performance.totalCollectionAmount) - data.filter(row => {
-                    const normalized = normalizeEmployeeName(row.name);
-                    return normalized === selectedName && row.task.trim().toLowerCase() === 'total balance collected';
-                }).reduce((sum, row) => sum + parseNumericValue(row.collectionAmount), 0);
-                
-                officeCollection += insPmtTotal * ratio;
-            }
-            
-            totalCollection += officeCollection;
-            const officeGoalDisplay = officeGoal * performance.numberOfDays;
-            const percentage = officeGoalDisplay > 0 ? (officeCollection / officeGoalDisplay * 100).toFixed(1) : '0.0';
-            
-            items.push({
-                office: office,
-                value: `$${officeCollection.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                goal: `$${officeGoalDisplay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                percentage: percentage
-            });
+        // Get collection from main data sheet (total balance collected task)
+        const officeDataMain = data.filter(row => {
+            const normalized = normalizeEmployeeName(row.name);
+            const rowDate = parseDate(row.date);
+            let inRange = normalized === selectedName && row.office === office;
+            if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+            if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+            return inRange && row.task.trim().toLowerCase() === 'total balance collected';
         });
         
-        breakdown = {
-            items: items,
-            total: `$${totalCollection.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        };
-    }
+        officeDataMain.forEach(row => {
+            officeCollection += parseNumericValue(row.collectionAmount);
+        });
+        
+        // Get collection from InsPmt and Collection sheets
+        const officeDataInsPmt = insPmtData.filter(row => {
+            const normalized = normalizeEmployeeName(row.name);
+            const rowDate = parseDate(row.date);
+            let inRange = normalized === selectedName;
+            
+            // Check if source indicates this office
+            if (row.source && row.source.includes('Collection-')) {
+                const sourceOffice = row.source.replace('Collection-', '');
+                inRange = inRange && sourceOffice === office;
+            } else if (row.source === 'InsPmt') {
+                // For InsPmt source, distribute proportionally based on goals
+                const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear());
+                if (officeGoal === 0) {
+                    inRange = false;
+                }
+            } else {
+                inRange = false;
+            }
+            
+            if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+            if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+            return inRange;
+        });
+        
+        officeDataInsPmt.forEach(row => {
+            const amount = parseNumericValue(row.amount);
+            if (row.source === 'InsPmt') {
+                // Distribute InsPmt proportionally
+                const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear());
+                const totalGoal = performance.collectionGoal;
+                if (totalGoal > 0 && officeGoal > 0) {
+                    const ratio = (officeGoal * performance.numberOfDays) / totalGoal;
+                    officeCollection += amount * ratio;
+                }
+            } else {
+                // Direct collection from API
+                officeCollection += amount;
+            }
+        });
+        
+        totalCollection += officeCollection;
+        const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear());
+        const officeGoalDisplay = officeGoal * performance.numberOfDays;
+        const percentage = officeGoalDisplay > 0 ? (officeCollection / officeGoalDisplay * 100).toFixed(1) : '0.0';
+        
+        items.push({
+            office: office,
+            value: `$${officeCollection.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            goal: `$${officeGoalDisplay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            percentage: percentage
+        });
+    });
+    
+    breakdown = {
+        items: items,
+        total: `$${totalCollection.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    };
+}
     else if (type === 'production') {
         const items = [];
         let totalProduction = 0;
@@ -3709,6 +3740,7 @@ const handleCardClick = (type) => {
     </script>
 </body>
 </html>
+
 
 
 
