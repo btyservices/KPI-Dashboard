@@ -2861,7 +2861,7 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                         }
                     }
 
-    return {
+                    return {
                     taskCounts: sortedTasks, 
                     unlistedTasks: sortedUnlistedTasks, 
                     taskPercentages,
@@ -2891,12 +2891,12 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                     pieChartData,
                     radarChartData
                 };
-            } catch (error) {
-                console.error('Error in calculatePerformance:', error);
-                setError(`Calculation error: ${error.message}`);
-                return null;
-            }
-        };
+                } catch (error) {
+                    console.error('Error in calculatePerformance:', error);
+                    setError(`Calculation error: ${error.message}`);
+                    return null;
+                }
+            };
 
         const perfColor = performance ? getPerformanceColor(performance.overallPerformance) : null;
             // Breakdown Modal Component
@@ -3746,4 +3746,5 @@ const officeAppts = data.filter(row => {
     </script>
 </body>
 </html>
+
 
