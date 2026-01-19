@@ -2264,25 +2264,17 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
 
                     // Calculate overall performance based on department (Option B: weighted by office goals)
                     let overallPerformance = 0;
-                    if (userDepartment === 'Outbound Department') {
-                        // Calculate weighted performance for each office
-                        let totalWeightedPerf = 0;
-                        let officeCount = 0;
-                        
-                        Object.keys(officeGoals).forEach(office => {
-                            const officeData = officeGoals[office];
-                            if (officeData.production > 0 || officeData.appointment > 0 || officeData.call > 0) {
-                                // Get actual collections for this office
-                                let officeProduction = productionData.filter(row => {
-                                    const normalized = normalizeEmployeeName(row.name);
-                                    const rowDate = parseDate(row.date);
-                                    let inRange = normalized === selectedName && row.office === office;
-                                    if (startDate) inRange = inRange && rowDate >= new Date(startDate);
-                                    if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-                                    return inRange;
-                                }).reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
-                                
-                                const officeAppts = performance.totalAppointments;
+                    // Get appointments for this office from data
+            const officeAppts = data.filter(row => {
+                const normalized = normalizeEmployeeName(row.name);
+                const rowDate = parseDate(row.date);
+                const standardTaskName = findTaskName(row.task.trim());
+                let inRange = normalized === selectedName && row.office === office;
+                if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+                if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+                return inRange && (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt' || 
+                                   standardTaskName === 'Inbound Text Appt' || standardTaskName === 'Outbound Text Appt');
+            }).reduce((sum, row) => sum + (parseNumericValue(row.amount) || 1), 0);
                                 
                                 // Calls aren't tracked by office in the data, so distribute proportionally
                                 const callRatio = officeData.call / callGoal;
@@ -3726,6 +3718,7 @@ const officeAppointments = data.filter(row => {
     </script>
 </body>
 </html>
+
 
 
 
