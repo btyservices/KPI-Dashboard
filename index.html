@@ -1942,29 +1942,9 @@ console.log(`📊 Working days: ${actualWorkingDays}, Display days: ${numberOfDa
                         });
 
                         // Process appointment data
-                        let filteredAppointments = appointmentData.filter(row => {
-                            const normalized = normalizeEmployeeName(row.name);
-                            return normalized === selectedName;
-                        });
-
-                        if (startDate) {
-                            const startDateObj = new Date(startDate);
-                            filteredAppointments = filteredAppointments.filter(row => {
-                                const rowDate = parseDate(row.date);
-                                return rowDate && rowDate >= startDateObj;
-                            });
-                        }
-
-                        if (endDate) {
-                            const endDateObj = new Date(endDate);
-                            filteredAppointments = filteredAppointments.filter(row => {
-                                const rowDate = parseDate(row.date);
-                                return rowDate && rowDate <= endDateObj;
-                            });
-                        }
-
-                        totalCompletedAppointments = filteredAppointments.reduce((sum, row) => sum + (row.count || 0), 0);
-                    }
+                        // Use totalAppointments from Sheet 1 data (already calculated above)
+                        // This ensures consistency with the pie chart distribution
+                        totalCompletedAppointments = totalAppointments;
 
                     // Add Ins Pmt / Collection sheet amounts to AR total
                     if (userDepartment === 'AR Department') {
@@ -3139,38 +3119,98 @@ const officeAppts = data.filter(row => {
         };
     }
     else if (type === 'performance') {
-        const officeBreakdown = [];
-        
-        performance.offices.forEach(office => {
-            const metrics = [];
-            let officePerf = 0;
+        if (performance.department === 'AR Department') {
+            // AR Department: Show Patient Collection + Office Collections
+            const items = [];
             
-            if (performance.department === 'AR Department') {
-                let officeCollection = 0;
-                const officeData = data.filter(row => {
+            // 1. Patient Collection (from main data sheet)
+            let patientCollectionTotal = 0;
+            const patientCollectionData = data.filter(row => {
+                const normalized = normalizeEmployeeName(row.name);
+                const rowDate = parseDate(row.date);
+                let inRange = normalized === selectedName;
+                if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+                if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+                return inRange && row.task.trim().toLowerCase() === 'total balance collected';
+            });
+            
+            patientCollectionData.forEach(row => {
+                patientCollectionTotal += parseNumericValue(row.collectionAmount);
+            });
+            
+            if (patientCollectionTotal > 0) {
+                // Calculate average goal across all assigned offices
+                let totalOfficeGoal = 0;
+                performance.offices.forEach(office => {
+                    const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear());
+                    totalOfficeGoal += officeGoal;
+                });
+                const avgGoalPerDay = totalOfficeGoal / performance.offices.length;
+                const avgGoalTotal = avgGoalPerDay * performance.numberOfDays;
+                const patientPercentage = avgGoalTotal > 0 ? (patientCollectionTotal / avgGoalTotal * 100).toFixed(1) : '0.0';
+                
+                items.push({
+                    office: 'Patient Collection',
+                    value: `$${patientCollectionTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                    goal: `$${avgGoalTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (avg)`,
+                    percentage: patientPercentage
+                });
+            }
+            
+            // 2. Each Office Collection (from API collection sheets)
+            performance.offices.forEach(office => {
+                const officeDataCollection = insPmtData.filter(row => {
                     const normalized = normalizeEmployeeName(row.name);
                     const rowDate = parseDate(row.date);
-                    let inRange = normalized === selectedName && row.office === office;
+                    let inRange = normalized === selectedName;
+                    
+                    if (row.source && row.source.includes('Collection-')) {
+                        const sourceOffice = row.source.replace('Collection-', '');
+                        inRange = inRange && sourceOffice === office;
+                    } else {
+                        inRange = false;
+                    }
+                    
                     if (startDate) inRange = inRange && rowDate >= new Date(startDate);
                     if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-                    return inRange && row.task.trim().toLowerCase() === 'total balance collected';
+                    return inRange;
                 });
                 
-                officeData.forEach(row => {
-                    officeCollection += parseNumericValue(row.collectionAmount);
-                });
+                const officeCollectionAmount = officeDataCollection.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
                 
-                const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
-                const collPerf = officeGoal > 0 ? (officeCollection / officeGoal * 100) : 0;
+                if (officeCollectionAmount > 0) {
+                    const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear());
+                    const officeGoalDisplay = officeGoal * performance.numberOfDays;
+                    const percentage = officeGoalDisplay > 0 ? (officeCollectionAmount / officeGoalDisplay * 100).toFixed(1) : '0.0';
+                    
+                    items.push({
+                        office: office,
+                        value: `$${officeCollectionAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        goal: `$${officeGoalDisplay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        percentage: percentage
+                    });
+                }
+            });
+            
+            const totalCollection = parseFloat(performance.totalCollectionAmount);
+            breakdown = {
+                items: items,
+                total: `$${totalCollection.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                overall: performance.overallPerformance,
+                explanation: performance.offices.length > 1 
+                    ? `Your overall performance is the average of all ${performance.offices.length} offices you're assigned to. Patient Collection is compared to the average goal across all offices. Each office collection is compared to that specific office's goal.`
+                    : `Your performance is calculated based on your actual results compared to the goal for ${performance.offices[0]}.`
+            };
+        }
+        else if (performance.department === 'Outbound Department') {
+            // Outbound Department: Production per office, Appointments and Calls are totals
+            const officeBreakdown = [];
+            
+            performance.offices.forEach(office => {
+                const metrics = [];
+                let officePerf = 0;
                 
-                metrics.push({
-                    label: 'Collection',
-                    value: `$${officeCollection.toFixed(2)} / $${officeGoal.toFixed(2)} (${collPerf.toFixed(1)}%)`
-                });
-                
-                officePerf = collPerf;
-            }
-            else if (performance.department === 'Outbound Department') {
+                // Production - DIFFERENT per office
                 const officeProduction = productionData.filter(row => {
                     const normalized = normalizeEmployeeName(row.name);
                     const rowDate = parseDate(row.date);
@@ -3188,66 +3228,45 @@ const officeAppts = data.filter(row => {
                     value: `$${officeProduction.toFixed(2)} / $${prodGoal.toFixed(2)} (${prodPerf.toFixed(1)}%)`
                 });
                 
-                // Get appointments from Data sheet (main sheet with tasks)
-const officeAppts = data.filter(row => {
-    const normalized = normalizeEmployeeName(row.name);
-    const rowDate = parseDate(row.date);
-    const standardTaskName = findTaskName(row.task.trim());
-    let inRange = normalized === selectedName && row.office === office;
-    if (startDate) inRange = inRange && rowDate >= new Date(startDate);
-    if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-    return inRange && (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt' || 
-                       standardTaskName === 'Inbound Text Appt' || standardTaskName === 'Outbound Text Appt');
-}).reduce((sum, row) => sum + (parseNumericValue(row.amount) || 1), 0);
-                
+                // Appointments - SAME for all offices (total count)
                 const apptGoal = getGoalForOffice(configData.goals, performance.department, office, 'Appointment', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
-                const apptPerf = apptGoal > 0 ? (officeAppts / apptGoal * 100) : 0;
+                const apptPerf = apptGoal > 0 ? (performance.totalAppointments / apptGoal * 100) : 0;
                 
                 metrics.push({
                     label: 'Appointments',
-                    value: `${officeAppts} / ${Math.round(apptGoal)} (${apptPerf.toFixed(1)}%)`
+                    value: `${performance.totalAppointments} / ${Math.round(apptGoal)} (${apptPerf.toFixed(1)}%)`
                 });
                 
+                // Calls - SAME for all offices (total count)
                 const callGoal = getGoalForOffice(configData.goals, performance.department, office, 'Call', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
-                const callRatio = callGoal / performance.callGoal;
-                const officeCalls = performance.totalCalls * callRatio;
-                const callPerf = callGoal > 0 ? (officeCalls / callGoal * 100) : 0;
+                const callPerf = callGoal > 0 ? (performance.totalCalls / callGoal * 100) : 0;
                 
                 metrics.push({
                     label: 'Calls',
-                    value: `${Math.round(officeCalls)} / ${Math.round(callGoal)} (${callPerf.toFixed(1)}%)`
+                    value: `${performance.totalCalls} / ${Math.round(callGoal)} (${callPerf.toFixed(1)}%)`
                 });
                 
                 officePerf = (prodPerf + apptPerf + callPerf) / 3;
-            }
-            else if (performance.department === 'Verification Department') {
-                const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Verification', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
-                const verificationRatio = officeGoal / performance.verificationGoal;
-                const officeVerifications = performance.verificationCount * verificationRatio;
-                const verPerf = officeGoal > 0 ? (officeVerifications / officeGoal * 100) : 0;
                 
-                metrics.push({
-                    label: 'Verifications',
-                    value: `${Math.round(officeVerifications)} / ${Math.round(officeGoal)} (${verPerf.toFixed(1)}%)`
+                officeBreakdown.push({
+                    name: office,
+                    performance: Math.min(100, officePerf),
+                    metrics: metrics
                 });
-                
-                officePerf = verPerf;
-            }
-            
-            officeBreakdown.push({
-                name: office,
-                performance: Math.min(100, officePerf),
-                metrics: metrics
             });
-        });
-        
-        breakdown = {
-            officeBreakdown: officeBreakdown,
-            overall: performance.overallPerformance,
-            explanation: performance.offices.length > 1 
-                ? `Your overall performance is the average of all ${performance.offices.length} offices you're assigned to. Each office's performance is calculated based on your actual results compared to the goals for that office.`
-                : `Your performance is calculated based on your actual results compared to the goal for ${performance.offices[0]}.`
-        };
+            
+            breakdown = {
+                officeBreakdown: officeBreakdown,
+                overall: performance.overallPerformance,
+                explanation: performance.offices.length > 1 
+                    ? `Your overall performance is the average of all ${performance.offices.length} offices you're assigned to. Production varies by office, while appointments (${performance.totalAppointments}) and calls (${performance.totalCalls}) are your total counts shown for each office.`
+                    : `Your performance is calculated based on your actual results compared to the goal for ${performance.offices[0]}.`
+            };
+        }
+        else if (performance.department === 'Verification Department') {
+            // Verification Department logic (if exists)
+            // ... add verification code here if needed
+        }
     }
     
     setBreakdownType(type);
@@ -3727,3 +3746,4 @@ const officeAppts = data.filter(row => {
     </script>
 </body>
 </html>
+
