@@ -2890,13 +2890,14 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                     dateRangeType,
                     pieChartData,
                     radarChartData
-            };
-       } catch (error) {
+                };
+                } catch (error) {
                     console.error('Error in calculatePerformance:', error);
                     setError(`Calculation error: ${error.message}`);
                     return null;
                 }
             };
+
         const perfColor = performance ? getPerformanceColor(performance.overallPerformance) : null;
             // Breakdown Modal Component
 const BreakdownModal = ({ type, data, onClose }) => {
@@ -3745,7 +3746,4 @@ const officeAppts = data.filter(row => {
     </script>
 </body>
 </html>
-
-
-
 
