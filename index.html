@@ -1618,6 +1618,9 @@
             // Chart options state
             const [pieChartScope, setPieChartScope] = useState('state'); // 'state' or 'overall'
             const [outboundMetric, setOutboundMetric] = useState('production'); // 'production', 'calls', 'appointments'
+            const [showBreakdownModal, setShowBreakdownModal] = useState(false);
+            const [breakdownData, setBreakdownData] = useState(null);
+            const [breakdownType, setBreakdownType] = useState('');
 
             const fetchDataFromSheet = async () => {
     setLoading(true);
@@ -2279,14 +2282,8 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                                     return inRange;
                                 }).reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
                                 
-                                let officeAppointments = appointmentData.filter(row => {
-                                    const normalized = normalizeEmployeeName(row.name);
-                                    const rowDate = parseDate(row.date);
-                                    let inRange = normalized === selectedName && row.office === office;
-                                    if (startDate) inRange = inRange && rowDate >= new Date(startDate);
-                                    if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-                                    return inRange;
-                                }).reduce((sum, row) => sum + (row.count || 0), 0);
+                                const apptGoalRatio = officeData.appointment / appointmentGoal;
+                                const officeAppointments = totalAppointments * apptGoalRatio;
                                 
                                 // Calls aren't tracked by office in the data, so distribute proportionally
                                 const callRatio = officeData.call / callGoal;
@@ -2614,17 +2611,44 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                         ];
                     } else if (userDepartment === 'AR Department') {
                         // AR Department task categories
-                        const billerTasks = (taskCounts['Batching Claims'] || 0) + 
-                                           (taskCounts['Sending Private Claims'] || 0) + 
-                                           (taskCounts['Sending Medicaid Claims'] || 0) +
-                                           (taskCounts['Billing Call'] || 0) +
-                                           (taskCounts['Outstanding Claims'] || 0);
-                        const posterTasks = (taskCounts['Entering Payments'] || 0) + 
-                                           (taskCounts['Entering EOBs'] || 0) +
-                                           (taskCounts['Processing CC Payments'] || 0);
-                        const doctorPayroll = taskCounts['Doctor Payroll'] || 0;
-                        const credentialing = taskCounts['Credentialing'] || 0;
-                        const otherTasks = totalTasks - billerTasks - posterTasks - doctorPayroll - credentialing;
+                        const billerTaskNames = [
+                            'Aging- Closed Denied Claims', 'Aging- Closed Paid Claims', 'Aging- Resubmit Claims',
+                            'Aging- Review Claims', 'Aging- Voided Claims', 'Batching Claims', 'Batching Statement',
+                            'Claims Attachments', 'Claims Not Sent', 'Compliance', 'Procedure Not Billed (Sent/Batched)',
+                            'Receiving Pre-Determination (PA)', 'Receiving Service Authorization (SA)', 'Rejected Claims Resubmission',
+                            'Sending Appeal/MJ', 'Sending Medicaid Claims', 'Sending Private Claims', 
+                            'Sending Pre-Determination (PA)', 'Sending Service Authorization (SA)', 'Sending Statements',
+                            'Sending to Collection Agency', 'Submitting Denied/Refund Letters',
+                            'Outstanding Claims', 'Billing Call', 'Receiving PA/SA', 'Sending Claims'
+                        ];
+                        
+                        const posterTaskNames = [
+                            'Entering EOBs', 'Entering Kleer Payments', 'Entering Payments', 'FA Set-up',
+                            'Kleer Set-up', 'Processing CC Payments', 'Retrieving EOBs/eChecks'
+                        ];
+                        
+                        const excludedTasks = ['Total Balance Collected', 'Total Completed Production', 'Total Confirmed Appts'];
+                        
+                        let billerTasks = 0;
+                        let posterTasks = 0;
+                        let doctorPayroll = taskCounts['Doctor Payroll'] || 0;
+                        let credentialing = taskCounts['Credentialing'] || 0;
+                        let otherTasks = 0;
+                        
+                        Object.entries(taskCounts).forEach(([taskName, count]) => {
+                            if (billerTaskNames.includes(taskName)) {
+                                billerTasks += count;
+                            } else if (posterTaskNames.includes(taskName)) {
+                                posterTasks += count;
+                            } else if (taskName === 'Doctor Payroll') {
+                                // already counted
+                            } else if (taskName === 'Credentialing') {
+                                // already counted
+                            } else if (!excludedTasks.includes(taskName)) {
+                                otherTasks += count;
+                            }
+                        });
+                        
                         radarChartData = [
                             { label: 'Biller Tasks', value: billerTasks },
                             { label: 'Poster Tasks', value: posterTasks },
@@ -2895,7 +2919,342 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
         };
 
         const perfColor = performance ? getPerformanceColor(performance.overallPerformance) : null;
+            // Breakdown Modal Component
+const BreakdownModal = ({ type, data, onClose }) => {
+    if (!data) return null;
 
+    const getTitle = () => {
+        switch(type) {
+            case 'collection': return 'Collection Breakdown by Office';
+            case 'production': return 'Production Breakdown by Office';
+            case 'appointments': return 'Completed Appointments by Office';
+            case 'performance': return 'Performance Breakdown';
+            default: return 'Breakdown';
+        }
+    };
+
+    const getIcon = () => {
+        switch(type) {
+            case 'collection': return '💰';
+            case 'production': return '📊';
+            case 'appointments': return '✅';
+            case 'performance': return '🎯';
+            default: return '📈';
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop" onClick={onClose}>
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-8 border border-slate-600 shadow-2xl max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto custom-scrollbar" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-3 rounded-xl">
+                            <span className="text-2xl">{getIcon()}</span>
+                        </div>
+                        <h2 className="text-2xl font-bold text-white">{getTitle()}</h2>
+                    </div>
+                    <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+
+                {type === 'performance' ? (
+                    <div className="space-y-4">
+                        <div className="bg-slate-700/40 rounded-xl p-4 border border-slate-600">
+                            <h3 className="text-white font-semibold mb-3">How Performance is Calculated</h3>
+                            <p className="text-slate-300 text-sm mb-4">{data.explanation}</p>
+                        </div>
+                        
+                        <div className="space-y-3">
+                            {data.officeBreakdown.map((office, index) => (
+                                <div key={index} className="bg-slate-700/40 rounded-xl p-4 border border-slate-600">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h4 className="text-white font-semibold">{office.name}</h4>
+                                        <span className="text-cyan-400 font-bold text-lg">{office.performance.toFixed(1)}%</span>
+                                    </div>
+                                    <div className="space-y-2 text-sm">
+                                        {office.metrics.map((metric, i) => (
+                                            <div key={i} className="flex items-center justify-between text-slate-300">
+                                                <span>{metric.label}</span>
+                                                <span className="font-semibold">{metric.value}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="bg-gradient-to-r from-cyan-900/30 to-blue-900/30 rounded-xl p-4 border border-cyan-500/30 mt-4">
+                            <div className="flex items-center justify-between">
+                                <span className="text-white font-semibold">Overall Average Performance</span>
+                                <span className="text-cyan-400 font-bold text-xl">{data.overall}%</span>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {data.items.map((item, index) => (
+                            <div key={index} className="bg-slate-700/40 rounded-xl p-4 border border-slate-600 hover:bg-slate-700/60 transition-all">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                        <h4 className="text-white font-semibold">{item.office}</h4>
+                                        {item.goal && (
+                                            <p className="text-slate-400 text-sm mt-1">Goal: {item.goal}</p>
+                                        )}
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-cyan-400 font-bold text-xl">{item.value}</p>
+                                        {item.percentage && (
+                                            <p className="text-slate-400 text-sm">{item.percentage}% of goal</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        
+                        <div className="bg-gradient-to-r from-cyan-900/30 to-blue-900/30 rounded-xl p-4 border border-cyan-500/30 mt-4">
+                            <div className="flex items-center justify-between">
+                                <span className="text-white font-semibold">Total</span>
+                                <span className="text-cyan-400 font-bold text-xl">{data.total}</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const handleCardClick = (type) => {
+    if (!performance) return;
+    
+    let breakdown = null;
+    
+    if (type === 'collection') {
+    const items = [];
+    let totalCollection = 0;
+    
+    // Get patient collection from main data sheet (total balance collected task)
+    let patientCollectionTotal = 0;
+    const patientCollectionData = data.filter(row => {
+        const normalized = normalizeEmployeeName(row.name);
+        const rowDate = parseDate(row.date);
+        let inRange = normalized === selectedName;
+        if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+        if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+        return inRange && row.task.trim().toLowerCase() === 'total balance collected';
+    });
+    
+    patientCollectionData.forEach(row => {
+        patientCollectionTotal += parseNumericValue(row.collectionAmount);
+    });
+    
+    if (patientCollectionTotal > 0) {
+        items.push({
+            office: 'Patient Collection',
+            value: `$${patientCollectionTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            goal: null,
+            percentage: null
+        });
+        totalCollection += patientCollectionTotal;
+    }
+    
+    // Get office-specific collection from API collection sheets
+    performance.offices.forEach(office => {
+        const officeDataCollection = insPmtData.filter(row => {
+            const normalized = normalizeEmployeeName(row.name);
+            const rowDate = parseDate(row.date);
+            let inRange = normalized === selectedName;
+            
+            // Check if source indicates this office
+            if (row.source && row.source.includes('Collection-')) {
+                const sourceOffice = row.source.replace('Collection-', '');
+                inRange = inRange && sourceOffice === office;
+            } else {
+                inRange = false;
+            }
+            
+            if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+            if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+            return inRange;
+        });
+        
+        const officeCollectionAmount = officeDataCollection.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
+        
+        if (officeCollectionAmount > 0) {
+            const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear());
+            const officeGoalDisplay = officeGoal * performance.numberOfDays;
+            const percentage = officeGoalDisplay > 0 ? (officeCollectionAmount / officeGoalDisplay * 100).toFixed(1) : '0.0';
+            
+            items.push({
+                office: office,
+                value: `$${officeCollectionAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                goal: `$${officeGoalDisplay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                percentage: percentage
+            });
+            totalCollection += officeCollectionAmount;
+        }
+    });
+    
+    breakdown = {
+        items: items,
+        total: `$${totalCollection.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    };
+}
+    else if (type === 'appointments') {
+        const items = [];
+        let totalAppts = 0;
+        
+        performance.offices.forEach(office => {
+            // Get appointments from Data sheet (main sheet with tasks)
+const officeAppts = data.filter(row => {
+    const normalized = normalizeEmployeeName(row.name);
+    const rowDate = parseDate(row.date);
+    const standardTaskName = findTaskName(row.task.trim());
+    let inRange = normalized === selectedName && row.office === office;
+    if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+    if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+    return inRange && (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt' || 
+                       standardTaskName === 'Inbound Text Appt' || standardTaskName === 'Outbound Text Appt');
+}).reduce((sum, row) => sum + (parseNumericValue(row.amount) || 1), 0);
+            
+            totalAppts += officeAppts;
+            const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Appointment', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
+            const percentage = officeGoal > 0 ? (officeAppts / officeGoal * 100).toFixed(1) : '0.0';
+            
+            items.push({
+                office: office,
+                value: officeAppts.toString(),
+                goal: Math.round(officeGoal).toString(),
+                percentage: percentage
+            });
+        });
+        
+        breakdown = {
+            items: items,
+            total: totalAppts.toString()
+        };
+    }
+    else if (type === 'performance') {
+        const officeBreakdown = [];
+        
+        performance.offices.forEach(office => {
+            const metrics = [];
+            let officePerf = 0;
+            
+            if (performance.department === 'AR Department') {
+                let officeCollection = 0;
+                const officeData = data.filter(row => {
+                    const normalized = normalizeEmployeeName(row.name);
+                    const rowDate = parseDate(row.date);
+                    let inRange = normalized === selectedName && row.office === office;
+                    if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+                    if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+                    return inRange && row.task.trim().toLowerCase() === 'total balance collected';
+                });
+                
+                officeData.forEach(row => {
+                    officeCollection += parseNumericValue(row.collectionAmount);
+                });
+                
+                const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
+                const collPerf = officeGoal > 0 ? (officeCollection / officeGoal * 100) : 0;
+                
+                metrics.push({
+                    label: 'Collection',
+                    value: `$${officeCollection.toFixed(2)} / $${officeGoal.toFixed(2)} (${collPerf.toFixed(1)}%)`
+                });
+                
+                officePerf = collPerf;
+            }
+            else if (performance.department === 'Outbound Department') {
+                const officeProduction = productionData.filter(row => {
+                    const normalized = normalizeEmployeeName(row.name);
+                    const rowDate = parseDate(row.date);
+                    let inRange = normalized === selectedName && row.office === office;
+                    if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+                    if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+                    return inRange;
+                }).reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
+                
+                const prodGoal = getGoalForOffice(configData.goals, performance.department, office, 'Production', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
+                const prodPerf = prodGoal > 0 ? (officeProduction / prodGoal * 100) : 0;
+                
+                metrics.push({
+                    label: 'Production',
+                    value: `$${officeProduction.toFixed(2)} / $${prodGoal.toFixed(2)} (${prodPerf.toFixed(1)}%)`
+                });
+                
+                // Get appointments from Data sheet (main sheet with tasks)
+const officeAppts = data.filter(row => {
+    const normalized = normalizeEmployeeName(row.name);
+    const rowDate = parseDate(row.date);
+    const standardTaskName = findTaskName(row.task.trim());
+    let inRange = normalized === selectedName && row.office === office;
+    if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+    if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+    return inRange && (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt' || 
+                       standardTaskName === 'Inbound Text Appt' || standardTaskName === 'Outbound Text Appt');
+}).reduce((sum, row) => sum + (parseNumericValue(row.amount) || 1), 0);
+                
+                const apptGoal = getGoalForOffice(configData.goals, performance.department, office, 'Appointment', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
+                const apptPerf = apptGoal > 0 ? (officeAppts / apptGoal * 100) : 0;
+                
+                metrics.push({
+                    label: 'Appointments',
+                    value: `${officeAppts} / ${Math.round(apptGoal)} (${apptPerf.toFixed(1)}%)`
+                });
+                
+                const callGoal = getGoalForOffice(configData.goals, performance.department, office, 'Call', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
+                const callRatio = callGoal / performance.callGoal;
+                const officeCalls = performance.totalCalls * callRatio;
+                const callPerf = callGoal > 0 ? (officeCalls / callGoal * 100) : 0;
+                
+                metrics.push({
+                    label: 'Calls',
+                    value: `${Math.round(officeCalls)} / ${Math.round(callGoal)} (${callPerf.toFixed(1)}%)`
+                });
+                
+                officePerf = (prodPerf + apptPerf + callPerf) / 3;
+            }
+            else if (performance.department === 'Verification Department') {
+                const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Verification', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
+                const verificationRatio = officeGoal / performance.verificationGoal;
+                const officeVerifications = performance.verificationCount * verificationRatio;
+                const verPerf = officeGoal > 0 ? (officeVerifications / officeGoal * 100) : 0;
+                
+                metrics.push({
+                    label: 'Verifications',
+                    value: `${Math.round(officeVerifications)} / ${Math.round(officeGoal)} (${verPerf.toFixed(1)}%)`
+                });
+                
+                officePerf = verPerf;
+            }
+            
+            officeBreakdown.push({
+                name: office,
+                performance: Math.min(100, officePerf),
+                metrics: metrics
+            });
+        });
+        
+        breakdown = {
+            officeBreakdown: officeBreakdown,
+            overall: performance.overallPerformance,
+            explanation: performance.offices.length > 1 
+                ? `Your overall performance is the average of all ${performance.offices.length} offices you're assigned to. Each office's performance is calculated based on your actual results compared to the goals for that office.`
+                : `Your performance is calculated based on your actual results compared to the goal for ${performance.offices[0]}.`
+        };
+    }
+    
+    setBreakdownType(type);
+    setBreakdownData(breakdown);
+    setShowBreakdownModal(true);
+};
+            
         useEffect(() => {
     if (!selectedName) {
         setPerformance(null);
@@ -3008,7 +3367,7 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                         {!loading && performance && selectedName && (
                             <div className="space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                    <div className="bg-gradient-to-br from-slate-800 via-slate-800 to-cyan-900/20 rounded-2xl p-6 border border-cyan-500/30 hover:border-cyan-400 hover:shadow-2xl hover:shadow-cyan-500/20 transition-all relative overflow-hidden group">
+                                    <div onClick={() => handleCardClick(performance.department === 'AR Department' ? 'collection' : performance.department === 'Outbound Department' ? 'production' : 'verification')} className="bg-gradient-to-br from-slate-800 via-slate-800 to-cyan-900/20 rounded-2xl p-6 border border-cyan-500/30 hover:border-cyan-400 hover:shadow-2xl hover:shadow-cyan-500/20 transition-all relative overflow-hidden group cursor-pointer">
                                         <div className="absolute top-0 right-0 w-40 h-40 bg-cyan-500/10 rounded-full -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-500"></div>
                                         <div className="relative z-10">
                                             <div className="flex items-center gap-3 mb-4">
@@ -3063,7 +3422,7 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                                     </div>
 
                                     {performance.department === 'Outbound Department' && (
-                                        <div className="bg-gradient-to-br from-slate-800 via-slate-800 to-amber-900/20 rounded-2xl p-6 border border-amber-500/30 hover:border-amber-400 hover:shadow-2xl hover:shadow-amber-500/20 transition-all relative overflow-hidden group">
+                                        <div onClick={() => handleCardClick('appointments')} className="bg-gradient-to-br from-slate-800 via-slate-800 to-amber-900/20 rounded-2xl p-6 border border-amber-500/30 hover:border-amber-400 hover:shadow-2xl hover:shadow-amber-500/20 transition-all relative overflow-hidden group cursor-pointer">
                                             <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-500"></div>
                                             <div className="relative z-10">
                                                 <div className="flex items-center gap-3 mb-4">
@@ -3087,7 +3446,7 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                                     )}
 
                                     {perfColor && (
-                                        <div className={`bg-gradient-to-br ${perfColor.bg} rounded-2xl p-6 border-2 ${perfColor.border} hover:shadow-2xl transition-all relative overflow-hidden group shadow-xl`}>
+                                        <div onClick={() => handleCardClick('performance')} className={`bg-gradient-to-br ${perfColor.bg} rounded-2xl p-6 border-2 ${perfColor.border} hover:shadow-2xl transition-all relative overflow-hidden group shadow-xl cursor-pointer`}>
                                             <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-500"></div>
                                             <div className="relative z-10">
                                                 <div className="flex items-center gap-3 mb-4">
@@ -3352,6 +3711,14 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                             </div>
                         </div>
                     )}
+
+                    {showBreakdownModal && (
+                        <BreakdownModal 
+                            type={breakdownType}
+                            data={breakdownData}
+                            onClose={() => setShowBreakdownModal(false)}
+                        />
+                    )}
                 </div>
             );
         };
@@ -3360,18 +3727,3 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
