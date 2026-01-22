@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -3141,34 +3141,81 @@ const officeAppts = data.filter(row => {
     else if (type === 'performance') {
         const officeBreakdown = [];
         
+        // NEW: Calculate Patient Collection first (for AR Department)
+        if (performance.department === 'AR Department') {
+            let patientCollectionTotal = 0;
+            const patientCollectionData = data.filter(row => {
+                const normalized = normalizeEmployeeName(row.name);
+                const rowDate = parseDate(row.date);
+                let inRange = normalized === selectedName;
+                if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+                if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+                return inRange && row.task.trim().toLowerCase() === 'total balance collected';
+            });
+            
+            patientCollectionData.forEach(row => {
+                patientCollectionTotal += parseNumericValue(row.collectionAmount);
+            });
+            
+            // Calculate average goal from all assigned offices
+            let totalOfficeGoals = 0;
+            performance.offices.forEach(office => {
+                const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
+                totalOfficeGoals += officeGoal;
+            });
+            const avgPatientGoal = performance.offices.length > 0 ? totalOfficeGoals / performance.offices.length : 0;
+            const patientPerf = avgPatientGoal > 0 ? (patientCollectionTotal / avgPatientGoal * 100) : 0;
+            
+            // Add Patient Collection to breakdown
+            officeBreakdown.push({
+                name: 'Patient Collection',
+                performance: Math.min(100, patientPerf),
+                metrics: [{
+                    label: 'Collection',
+                    value: `$${patientCollectionTotal.toFixed(2)} / $${avgPatientGoal.toFixed(2)} (${patientPerf.toFixed(1)}%)`
+                }]
+            });
+        }
+        
+        // Process each office
         performance.offices.forEach(office => {
             const metrics = [];
             let officePerf = 0;
             
             if (performance.department === 'AR Department') {
+                // Get office-specific collection from API collection sheets (same logic as Collection Breakdown)
                 let officeCollection = 0;
-                const officeData = data.filter(row => {
+                const officeDataCollection = insPmtData.filter(row => {
                     const normalized = normalizeEmployeeName(row.name);
                     const rowDate = parseDate(row.date);
-                    let inRange = normalized === selectedName && row.office === office;
+                    let inRange = normalized === selectedName;
+        
+                    // Check if source indicates this office
+                    if (row.source && row.source.includes('Collection-')) {
+                        const sourceOffice = row.source.replace('Collection-', '');
+                        inRange = inRange && sourceOffice === office;
+                    } else {
+                        // If source doesn't have Collection- prefix, skip this row for office-specific data
+                        return false;
+                    }
+        
                     if (startDate) inRange = inRange && rowDate >= new Date(startDate);
                     if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-                    return inRange && row.task.trim().toLowerCase() === 'total balance collected';
+                    return inRange;
                 });
-                
-                officeData.forEach(row => {
-                    officeCollection += parseNumericValue(row.collectionAmount);
-                });
-                
+    
+                const officeCollectionAmount = officeDataCollection.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
+    
                 const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
-                const collPerf = officeGoal > 0 ? (officeCollection / officeGoal * 100) : 0;
-                
+                const collPerf = officeGoal > 0 ? (officeCollectionAmount / officeGoal * 100) : 0;
+    
                 metrics.push({
                     label: 'Collection',
-                    value: `$${officeCollection.toFixed(2)} / $${officeGoal.toFixed(2)} (${collPerf.toFixed(1)}%)`
+                    value: `$${officeCollectionAmount.toFixed(2)} / $${officeGoal.toFixed(2)} (${collPerf.toFixed(1)}%)`
                 });
-                
+    
                 officePerf = collPerf;
+            }
             }
             else if (performance.department === 'Outbound Department') {
                 const officeProduction = productionData.filter(row => {
@@ -3241,12 +3288,23 @@ const officeAppts = data.filter(row => {
             });
         });
         
+        // Calculate overall performance including Patient Collection for AR Department
+        let overallPerf = performance.overallPerformance;
+        if (performance.department === 'AR Department' && officeBreakdown.length > 0) {
+            const totalPerf = officeBreakdown.reduce((sum, item) => sum + item.performance, 0);
+            overallPerf = Math.round(totalPerf / officeBreakdown.length);
+        }
+        
         breakdown = {
             officeBreakdown: officeBreakdown,
-            overall: performance.overallPerformance,
-            explanation: performance.offices.length > 1 
-                ? `Your overall performance is the average of all ${performance.offices.length} offices you're assigned to. Each office's performance is calculated based on your actual results compared to the goals for that office.`
-                : `Your performance is calculated based on your actual results compared to the goal for ${performance.offices[0]}.`
+            overall: overallPerf,
+            explanation: performance.department === 'AR Department'
+                ? performance.offices.length > 1 
+                    ? `Your overall performance is the average of Patient Collection and all ${performance.offices.length} offices you're assigned to. Patient Collection goal is the average of all office goals. Each office's performance is calculated based on your actual results compared to the goals for that office.`
+                    : `Your performance is the average of Patient Collection and ${performance.offices[0]}. Patient Collection uses the office goal as its target.`
+                : performance.offices.length > 1 
+                    ? `Your overall performance is the average of all ${performance.offices.length} offices you're assigned to. Each office's performance is calculated based on your actual results compared to the goals for that office.`
+                    : `Your performance is calculated based on your actual results compared to the goal for ${performance.offices[0]}.`
         };
     }
     
@@ -3727,3 +3785,4 @@ const officeAppts = data.filter(row => {
     </script>
 </body>
 </html>
+
