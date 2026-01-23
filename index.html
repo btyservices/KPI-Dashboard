@@ -3104,40 +3104,7 @@ const handleCardClick = (type) => {
         total: `$${totalCollection.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     };
 }
-    else if (type === 'appointments') {
-        const items = [];
-        let totalAppts = 0;
-        
-        performance.offices.forEach(office => {
-            // Get appointments from Data sheet (main sheet with tasks)
-const officeAppts = data.filter(row => {
-    const normalized = normalizeEmployeeName(row.name);
-    const rowDate = parseDate(row.date);
-    const standardTaskName = findTaskName(row.task.trim());
-    let inRange = normalized === selectedName && row.office === office;
-    if (startDate) inRange = inRange && rowDate >= new Date(startDate);
-    if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-    return inRange && (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt' || 
-                       standardTaskName === 'Inbound Text Appt' || standardTaskName === 'Outbound Text Appt');
-}).reduce((sum, row) => sum + (parseNumericValue(row.amount) || 1), 0);
-            
-            totalAppts += officeAppts;
-            const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Appointment', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
-            const percentage = officeGoal > 0 ? (officeAppts / officeGoal * 100).toFixed(1) : '0.0';
-            
-            items.push({
-                office: office,
-                value: officeAppts.toString(),
-                goal: Math.round(officeGoal).toString(),
-                percentage: percentage
-            });
-        });
-        
-        breakdown = {
-            items: items,
-            total: totalAppts.toString()
-        };
-    }
+    
     else if (type === 'performance') {
         const officeBreakdown = [];
         
@@ -3234,34 +3201,13 @@ const officeAppts = data.filter(row => {
                     value: `$${officeProduction.toFixed(2)} / $${prodGoal.toFixed(2)} (${prodPerf.toFixed(1)}%)`
                 });
                 
-                // Get appointments from Data sheet (main sheet with tasks)
-            const officeAppts = data.filter(row => {
-                const normalized = normalizeEmployeeName(row.name);
-                const rowDate = parseDate(row.date);
-                const standardTaskName = findTaskName(row.task.trim());
-                let inRange = normalized === selectedName && row.office === office;
-                 if (startDate) inRange = inRange && rowDate >= new Date(startDate);
-                  if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-                    return inRange && (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt' || 
-                       standardTaskName === 'Inbound Text Appt' || standardTaskName === 'Outbound Text Appt');
-            }).reduce((sum, row) => sum + (parseNumericValue(row.amount) || 1), 0);
-                
+                // Use totalAppointments for all offices (from Sheet 1 data)
                 const apptGoal = getGoalForOffice(configData.goals, performance.department, office, 'Appointment', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
-                const apptPerf = apptGoal > 0 ? (officeAppts / apptGoal * 100) : 0;
-                
+                const apptPerf = apptGoal > 0 ? (performance.totalAppointments / apptGoal * 100) : 0;
+
                 metrics.push({
                     label: 'Appointments',
-                    value: `${officeAppts} / ${Math.round(apptGoal)} (${apptPerf.toFixed(1)}%)`
-                });
-                
-                const callGoal = getGoalForOffice(configData.goals, performance.department, office, 'Call', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
-                const callRatio = callGoal / performance.callGoal;
-                const officeCalls = performance.totalCalls * callRatio;
-                const callPerf = callGoal > 0 ? (officeCalls / callGoal * 100) : 0;
-                
-                metrics.push({
-                    label: 'Calls',
-                    value: `${Math.round(officeCalls)} / ${Math.round(callGoal)} (${callPerf.toFixed(1)}%)`
+                    value: `${performance.totalAppointments} / ${Math.round(apptGoal)} (${apptPerf.toFixed(1)}%)`
                 });
                 
                 officePerf = (prodPerf + apptPerf + callPerf) / 3;
@@ -3479,7 +3425,7 @@ const officeAppts = data.filter(row => {
                                     </div>
 
                                     {performance.department === 'Outbound Department' && (
-                                        <div onClick={() => handleCardClick('appointments')} className="bg-gradient-to-br from-slate-800 via-slate-800 to-amber-900/20 rounded-2xl p-6 border border-amber-500/30 hover:border-amber-400 hover:shadow-2xl hover:shadow-amber-500/20 transition-all relative overflow-hidden group cursor-pointer">
+                                        <div className="bg-gradient-to-br from-slate-800 via-slate-800 to-amber-900/20 rounded-2xl p-6 border border-amber-500/30 transition-all relative overflow-hidden group">
                                             <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-500"></div>
                                             <div className="relative z-10">
                                                 <div className="flex items-center gap-3 mb-4">
@@ -3784,5 +3730,6 @@ const officeAppts = data.filter(row => {
     </script>
 </body>
 </html>
+
 
 
