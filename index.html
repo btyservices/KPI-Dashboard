@@ -3182,7 +3182,7 @@ const handleCardClick = (type) => {
 
                 officePerf = collPerf;
             }
-                else if (performance.department === 'Outbound Department') {
+            else if (performance.department === 'Outbound Department') {
                 const officeProduction = productionData.filter(row => {
                     const normalized = normalizeEmployeeName(row.name);
                     const rowDate = parseDate(row.date);
@@ -3219,21 +3219,11 @@ const handleCardClick = (type) => {
                 
                 metrics.push({
                     label: 'Calls',
-                            value: `${Math.round(officeCalls)} / ${Math.round(callGoal)} (${callPerf.toFixed(1)}%)`
-                        });
+                    value: `${Math.round(officeCalls)} / ${Math.round(callGoal)} (${callPerf.toFixed(1)}%)`
+                });
                         
-                        officePerf = (prodPerf + apptPerf + callPerf) / 3;
-                    }
-                breakdown = {
-                    officeBreakdown: officeBreakdown,
-                    overall: overallPerf,
-                    explanation: performance.department === 'Outbound Department'
-                        ? performance.offices.length > 1 
-                            ? `Your overall performance is the average of all ${performance.offices.length} offices you're assigned to. Each office's performance is calculated based on your production, appointments, and calls compared to the goals for that office.`
-                            : `Your performance is calculated based on your production, appointments, and calls compared to the goal for ${performance.offices[0]}.`
-                        : ''
-                };
-            }
+                officePerf = (prodPerf + apptPerf + callPerf) / 3;
+             }
             else if (performance.department === 'Verification Department') {
                 const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Verification', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
                 const verificationRatio = officeGoal / performance.verificationGoal;
@@ -3752,6 +3742,7 @@ useEffect(() => {
     </script>
 </body>
 </html>
+
 
 
 
