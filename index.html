@@ -3182,8 +3182,7 @@ const handleCardClick = (type) => {
 
                 officePerf = collPerf;
             }
-                
-            else if (performance.department === 'Outbound Department') {
+                else if (performance.department === 'Outbound Department') {
                 const officeProduction = productionData.filter(row => {
                     const normalized = normalizeEmployeeName(row.name);
                     const rowDate = parseDate(row.date);
@@ -3201,17 +3200,40 @@ const handleCardClick = (type) => {
                     value: `$${officeProduction.toFixed(2)} / $${prodGoal.toFixed(2)} (${prodPerf.toFixed(1)}%)`
                 });
                 
-                // Use totalAppointments for all offices (from Sheet 1 data)
+                // Appointments - distribute proportionally by office goal
                 const apptGoal = getGoalForOffice(configData.goals, performance.department, office, 'Appointment', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
-                const apptPerf = apptGoal > 0 ? (performance.totalAppointments / apptGoal * 100) : 0;
+                const apptRatio = apptGoal / performance.appointmentGoal;
+                const officeAppointments = performance.totalAppointments * apptRatio;
+                const apptPerf = apptGoal > 0 ? (officeAppointments / apptGoal * 100) : 0;
 
                 metrics.push({
                     label: 'Appointments',
-                    value: `${performance.totalAppointments} / ${Math.round(apptGoal)} (${apptPerf.toFixed(1)}%)`
+                    value: `${Math.round(officeAppointments)} / ${Math.round(apptGoal)} (${apptPerf.toFixed(1)}%)`
+                });
+                
+                // Calls - distribute proportionally by office goal
+                const callGoal = getGoalForOffice(configData.goals, performance.department, office, 'Call', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
+                const callRatio = callGoal / performance.callGoal;
+                const officeCalls = performance.totalCalls * callRatio;
+                const callPerf = callGoal > 0 ? (officeCalls / callGoal * 100) : 0;
+                
+                metrics.push({
+                    label: 'Calls',
+                    value: `${Math.round(officeCalls)} / ${Math.round(callGoal)} (${callPerf.toFixed(1)}%)`
                 });
                 
                 officePerf = (prodPerf + apptPerf + callPerf) / 3;
             }
+                    breakdown = {
+            officeBreakdown: officeBreakdown,
+            overall: overallPerf,
+            explanation: performance.department === 'Outbound Department'
+                ? performance.offices.length > 1 
+                    ? `Your overall performance is the average of all ${performance.offices.length} offices you're assigned to. Each office's performance is calculated based on your production, appointments, and calls compared to the goals for that office.`
+                    : `Your performance is calculated based on your production, appointments, and calls compared to the goal for ${performance.offices[0]}.`
+                : ''
+        };
+    }
             else if (performance.department === 'Verification Department') {
                 const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Verification', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
                 const verificationRatio = officeGoal / performance.verificationGoal;
@@ -3730,6 +3752,7 @@ const handleCardClick = (type) => {
     </script>
 </body>
 </html>
+
 
 
 
