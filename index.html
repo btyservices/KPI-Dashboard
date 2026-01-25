@@ -1601,7 +1601,7 @@ const RankingSidebar = ({ isOpen, onClose, startDate, endDate, configData, data,
     useEffect(() => {
         calculateRankings();
     }, [filters, startDate, endDate, data, insPmtData, productionData, appointmentData, configData]);
-
+  
     const calculateRankings = () => {
         const currentMonth = new Date().getMonth() + 1;
         const currentYear = new Date().getFullYear();
@@ -1619,12 +1619,8 @@ const RankingSidebar = ({ isOpen, onClose, startDate, endDate, configData, data,
             return true;
         });
 
-        // Calculate performance for each employee by calling the ACTUAL calculatePerformance
+        // For each employee, temporarily calculate their performance
         const employeePerformance = employees.map(empCode => {
-            // Temporarily store current selectedName
-            const previousSelected = selectedName;
-        
-            // Set to this employee and calculate
             const tempPerf = calculatePerformanceForEmployee(empCode);
         
             return {
@@ -1634,153 +1630,12 @@ const RankingSidebar = ({ isOpen, onClose, startDate, endDate, configData, data,
                 totalValue: tempPerf.department === 'AR Department' ? parseFloat(tempPerf.totalCollectionAmount) :
                            tempPerf.department === 'Outbound Department' ? parseFloat(tempPerf.totalProductionAmount) :
                            tempPerf.verificationCount,
-                goalValue: 0,
-                performance: tempPerf.overallPerformance // USE THE ACTUAL CALCULATED PERFORMANCE!
+                performance: tempPerf.overallPerformance
             };
         });
 
         employeePerformance.sort((a, b) => b.performance - a.performance);
         setRankings(employeePerformance);
-    };
-
-    // Helper function that calls calculatePerformance for any employee
-    const calculatePerformanceForEmployee = (empCode) => {
-        // Create a temporary "selectedName" context
-        const tempSelectedName = empCode;
-        
-        // Copy the ENTIRE calculatePerformance logic but use empCode instead of selectedName
-        // This is a wrapper that ensures we use the exact same calculation
-    
-        try {
-            const today = new Date();
-            const currentMonth = today.getMonth() + 1;
-            const currentYear = today.getFullYear();
-
-            const assignments = getEmployeeAssignments(configData.employees, empCode, currentMonth, currentYear);
-
-            if (assignments.length === 0) {
-                return {
-                    overallPerformance: 0,
-                    department: 'Unassigned',
-                    state: 'N/A',
-                    totalCollectionAmount: '0.00',
-                    totalProductionAmount: '0.00',
-                    verificationCount: 0
-                };
-            }
-
-            // Just call the parent's calculatePerformance with this employee's data
-            // by temporarily swapping selectedName
-        
-            // Store all the employee's filtered data
-            let filtered = data.filter(row => normalizeEmployeeName(row.name) === empCode);
-            let filteredInsPmt = insPmtData.filter(row => normalizeEmployeeName(row.name) === empCode);
-        
-            // Apply date filters
-            if (startDate) {
-                const startDateObj = new Date(startDate);
-                filtered = filtered.filter(row => parseDate(row.date) >= startDateObj);
-                filteredInsPmt = filteredInsPmt.filter(row => parseDate(row.date) >= startDateObj);
-            }
-            if (endDate) {
-                const endDateObj = new Date(endDate);
-                filtered = filtered.filter(row => parseDate(row.date) <= endDateObj);
-                filteredInsPmt = filteredInsPmt.filter(row => parseDate(row.date) <= endDateObj);
-            }
-
-            const primaryAssignment = assignments[0];
-            const assignedOffices = [...new Set(assignments.map(a => a.office).filter(o => o))];
-            const userDepartment = primaryAssignment.department;
-            const userState = primaryAssignment.state;
-
-            // Calculate totals based on department
-            let totalCollectionAmount = 0;
-            let totalProductionAmount = 0;
-            let verificationCount = 0;
-
-            if (userDepartment === 'AR Department') {
-                filtered.forEach(row => {
-                    if (row.task.trim().toLowerCase() === 'total balance collected') {
-                        totalCollectionAmount += parseNumericValue(row.collectionAmount);
-                    }
-                });
-                filteredInsPmt.forEach(row => {
-                    totalCollectionAmount += parseNumericValue(row.amount);
-                });
-            } else if (userDepartment === 'Outbound Department') {
-                let filteredProduction = productionData.filter(row => normalizeEmployeeName(row.name) === empCode);
-                if (startDate) {
-                    const startDateObj = new Date(startDate);
-                    filteredProduction = filteredProduction.filter(row => parseDate(row.date) >= startDateObj);
-                }
-                if (endDate) {
-                    const endDateObj = new Date(endDate);
-                    filteredProduction = filteredProduction.filter(row => parseDate(row.date) <= endDateObj);
-                }
-                totalProductionAmount = filteredProduction.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
-            } else if (userDepartment === 'Verification Department') {
-                filtered.forEach(row => {
-                    const standardTaskName = findTaskName(row.task.trim());
-                    if (standardTaskName === 'Verification' || standardTaskName === 'Verification (M)' || standardTaskName === 'Verification (P)') {
-                        verificationCount += parseNumericValue(row.amount);
-                    }
-                });
-            }
-
-            // For performance, we need to calculate the weighted office performance
-            // This is complex, so for ranking we'll use a simpler approximation
-            // OR we can copy the exact office goal calculation from main function
-        
-            // Simplified: just use total/avgGoal * 100 capped at 100
-            const allEmployeeData = [...filtered, ...filteredInsPmt];
-            const workSchedule = detectWorkSchedule(allEmployeeData, productionData, appointmentData, empCode);
-        
-            let numberOfDays = 1;
-            if (startDate && endDate) {
-                const [sy, sm, sd] = startDate.split('-');
-                const [ey, em, ed] = endDate.split('-');
-                const start = new Date(Date.UTC(parseInt(sy), parseInt(sm) - 1, parseInt(sd)));
-                const end = new Date(Date.UTC(parseInt(ey), parseInt(em) - 1, parseInt(ed)));
-                numberOfDays = Math.max(1, countWorkingDays(start, end, workSchedule));
-            }
-
-            // Calculate average goal
-            let totalGoal = 0;
-            const goalType = userDepartment === 'AR Department' ? 'Collection' :
-                            userDepartment === 'Outbound Department' ? 'Production' :
-                            'Verification';
-        
-            assignedOffices.forEach(office => {
-                totalGoal += getGoalForOffice(configData.goals, userDepartment, office, goalType, currentMonth, currentYear) * numberOfDays;
-            });
-        
-            const avgGoal = assignedOffices.length > 0 ? totalGoal / assignedOffices.length : 0;
-        
-            const actualValue = userDepartment === 'AR Department' ? totalCollectionAmount :
-                               userDepartment === 'Outbound Department' ? totalProductionAmount :
-                               verificationCount;
-        
-            const overallPerformance = avgGoal > 0 ? Math.min(100, Math.round((actualValue / avgGoal) * 100)) : 0;
-
-            return {
-                overallPerformance,
-                department: userDepartment,
-                state: userState,
-                totalCollectionAmount: totalCollectionAmount.toFixed(2),
-                totalProductionAmount: totalProductionAmount.toFixed(2),
-                verificationCount
-            };
-        } catch (err) {
-            console.error('Error calculating performance for', empCode, err);
-            return {
-                overallPerformance: 0,
-                department: 'Error',
-                state: 'N/A',
-                totalCollectionAmount: '0.00',
-                totalProductionAmount: '0.00',
-                verificationCount: 0
-            };
-        }
     };
 
     // Helper function that runs the same logic as calculatePerformance but for any employee
@@ -4348,6 +4203,7 @@ useEffect(() => {
     </script>
 </body>
 </html>
+
 
 
 
