@@ -3104,9 +3104,46 @@ const handleCardClick = (type) => {
         total: `$${totalCollection.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     };
 }
+
+else if (type === 'production') {
+    const items = [];
+    let totalProduction = 0;
     
-    else if (type === 'performance') {
-        const officeBreakdown = [];
+    performance.offices.forEach(office => {
+        const officeDataProduction = productionData.filter(row => {
+            const normalized = normalizeEmployeeName(row.name);
+            const rowDate = parseDate(row.date);
+            let inRange = normalized === selectedName && row.office === office;
+            if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+            if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+            return inRange;
+        });
+        
+        const officeProductionAmount = officeDataProduction.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
+        
+        if (officeProductionAmount > 0) {
+            const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Production', new Date().getMonth() + 1, new Date().getFullYear());
+            const officeGoalDisplay = officeGoal * performance.numberOfDays;
+            const percentage = officeGoalDisplay > 0 ? (officeProductionAmount / officeGoalDisplay * 100).toFixed(1) : '0.0';
+            
+            items.push({
+                office: office,
+                value: `$${officeProductionAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                goal: `$${officeGoalDisplay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                percentage: percentage
+            });
+            totalProduction += officeProductionAmount;
+        }
+    });
+    
+    breakdown = {
+        items: items,
+        total: `$${totalProduction.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    };
+}
+
+else if (type === 'performance') {
+    const officeBreakdown = [];
         
         // NEW: Calculate Patient Collection first (for AR Department)
         if (performance.department === 'AR Department') {
@@ -3742,6 +3779,7 @@ useEffect(() => {
     </script>
 </body>
 </html>
+
 
 
 
