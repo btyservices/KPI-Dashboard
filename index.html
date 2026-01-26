@@ -4199,10 +4199,12 @@ useEffect(() => {
             );
         };
 
-        ReactDOM.render(<PerformanceTracker />, document.getElementById('root'));
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<PerformanceTracker />);
     </script>
 </body>
 </html>
+
 
 
 
