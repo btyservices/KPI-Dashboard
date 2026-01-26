@@ -1603,136 +1603,288 @@ const RankingSidebar = ({ isOpen, onClose, startDate, endDate, configData, data,
     }, [filters, startDate, endDate, data, insPmtData, productionData, appointmentData]);
 
     const calculateRankings = () => {
-        const currentMonth = new Date().getMonth() + 1;
-        const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
+    
+    // Get all employees matching filters
+    let employees = configData.employeeCodes.filter(empCode => {
+        const assignments = getEmployeeAssignments(configData.employees, empCode, currentMonth, currentYear);
+        if (assignments.length === 0) return false;
         
-        // Get all employees matching filters
-        let employees = configData.employeeCodes.filter(empCode => {
-            const assignments = getEmployeeAssignments(configData.employees, empCode, currentMonth, currentYear);
-            if (assignments.length === 0) return false;
-            
-            const emp = assignments[0];
-            if (filters.department && emp.department !== filters.department) return false;
-            if (filters.state && emp.state !== filters.state) return false;
-            if (filters.office && !assignments.some(a => a.office === filters.office)) return false;
-            
-            return true;
-        });
+        const emp = assignments[0];
+        if (filters.department && emp.department !== filters.department) return false;
+        if (filters.state && emp.state !== filters.state) return false;
+        if (filters.office && !assignments.some(a => a.office === filters.office)) return false;
+        
+        return true;
+    });
 
-        // Calculate performance for each employee
-        const employeePerformance = employees.map(empCode => {
-            const assignments = getEmployeeAssignments(configData.employees, empCode, currentMonth, currentYear);
-            const dept = assignments[0]?.department;
-            
-            let totalValue = 0;
-            let goalValue = 0;
-            let numberOfDays = 1;
+    // Calculate performance for each employee using the SAME calculatePerformance logic
+    const employeePerformance = employees.map(empCode => {
+        // Temporarily set selectedName to this employee to reuse calculatePerformance
+        const tempSelectedName = empCode;
+        
+        // Get assignments for display info
+        const assignments = getEmployeeAssignments(configData.employees, empCode, currentMonth, currentYear);
+        const dept = assignments[0]?.department;
+        const state = assignments[0]?.state;
+        
+        // Filter data for this employee (same logic as main calculatePerformance)
+        let empData = data.filter(row => normalizeEmployeeName(row.name) === empCode);
+        let empInsPmt = insPmtData.filter(row => normalizeEmployeeName(row.name) === empCode);
+        let empProduction = productionData.filter(row => normalizeEmployeeName(row.name) === empCode);
+        let empAppointments = appointmentData.filter(row => normalizeEmployeeName(row.name) === empCode);
+        
+        // Apply date filters
+        if (startDate) {
+            const startDateObj = new Date(startDate);
+            empData = empData.filter(row => parseDate(row.date) >= startDateObj);
+            empInsPmt = empInsPmt.filter(row => parseDate(row.date) >= startDateObj);
+            empProduction = empProduction.filter(row => parseDate(row.date) >= startDateObj);
+            empAppointments = empAppointments.filter(row => parseDate(row.date) >= startDateObj);
+        }
+        if (endDate) {
+            const endDateObj = new Date(endDate);
+            empData = empData.filter(row => parseDate(row.date) <= endDateObj);
+            empInsPmt = empInsPmt.filter(row => parseDate(row.date) <= endDateObj);
+            empProduction = empProduction.filter(row => parseDate(row.date) <= endDateObj);
+            empAppointments = empAppointments.filter(row => parseDate(row.date) <= endDateObj);
+        }
 
-            // Calculate working days
-            if (startDate && endDate) {
-                const start = new Date(startDate);
-                const end = new Date(endDate);
-                numberOfDays = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
+        // Detect work schedule and calculate working days
+        const allEmployeeData = [...empData, ...empInsPmt];
+        const workSchedule = detectWorkSchedule(allEmployeeData, empProduction, empAppointments, empCode);
+        
+        let numberOfDays = 1;
+        if (startDate && endDate) {
+            const [startYear, startMonth, startDay] = startDate.split('-');
+            const [endYear, endMonth, endDay] = endDate.split('-');
+            const start = new Date(Date.UTC(parseInt(startYear), parseInt(startMonth) - 1, parseInt(startDay)));
+            const end = new Date(Date.UTC(parseInt(endYear), parseInt(endMonth) - 1, parseInt(endDay)));
+            
+            if (start.toDateString() === end.toDateString()) {
+                numberOfDays = isWorkingDay(start, workSchedule) ? 1 : 0;
+            } else {
+                numberOfDays = countWorkingDays(start, end, workSchedule);
             }
+            numberOfDays = Math.max(1, numberOfDays);
+        }
 
-            if (dept === 'AR Department') {
-                // Calculate collection
-                let empData = data.filter(row => normalizeEmployeeName(row.name) === empCode);
-                let empInsPmt = insPmtData.filter(row => normalizeEmployeeName(row.name) === empCode);
+        // Calculate goals and actual values (same logic as main calculatePerformance)
+        let officeGoals = {};
+        let collectionGoal = 0, productionGoal = 0, appointmentGoal = 0, callGoal = 0, verificationGoal = 0;
+        
+        let goalStartDate, goalEndDate;
+        if (startDate && endDate) {
+            goalStartDate = new Date(startDate);
+            goalEndDate = new Date(endDate);
+        } else if (startDate) {
+            goalStartDate = new Date(startDate);
+            goalEndDate = new Date(startDate);
+        } else if (endDate) {
+            goalStartDate = new Date(endDate);
+            goalEndDate = new Date(endDate);
+        } else {
+            goalStartDate = new Date(currentYear, currentMonth - 1, 1);
+            goalEndDate = new Date(currentYear, currentMonth, 0);
+        }
+
+        let currentDate = new Date(goalStartDate.getFullYear(), goalStartDate.getMonth(), 1);
+        const endMonth = new Date(goalEndDate.getFullYear(), goalEndDate.getMonth(), 1);
+
+        while (currentDate <= endMonth) {
+            const month = currentDate.getMonth() + 1;
+            const year = currentDate.getFullYear();
+            
+            const monthAssignments = getEmployeeAssignments(configData.employees, empCode, month, year);
+            
+            if (monthAssignments.length > 0) {
+                const monthOffices = monthAssignments.map(a => a.office).filter(o => o);
                 
-                if (startDate) {
-                    const startDateObj = new Date(startDate);
-                    empData = empData.filter(row => parseDate(row.date) >= startDateObj);
-                    empInsPmt = empInsPmt.filter(row => parseDate(row.date) >= startDateObj);
-                }
-                if (endDate) {
-                    const endDateObj = new Date(endDate);
-                    empData = empData.filter(row => parseDate(row.date) <= endDateObj);
-                    empInsPmt = empInsPmt.filter(row => parseDate(row.date) <= endDateObj);
-                }
-
-                empData.forEach(row => {
-                    if (row.task.trim().toLowerCase() === 'total balance collected') {
-                        totalValue += parseNumericValue(row.collectionAmount);
+                const firstDayOfMonth = new Date(year, month - 1, 1);
+                const lastDayOfMonth = new Date(year, month, 0);
+                const monthStart = goalStartDate > firstDayOfMonth ? new Date(goalStartDate) : firstDayOfMonth;
+                const monthEnd = goalEndDate < lastDayOfMonth ? new Date(goalEndDate) : lastDayOfMonth;
+                
+                let daysInThisMonth = countWorkingDays(monthStart, monthEnd, workSchedule);
+                
+                if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    if (start.toDateString() === end.toDateString()) {
+                        daysInThisMonth = isWorkingDay(start, workSchedule) ? 1 : 0;
                     }
-                });
-                empInsPmt.forEach(row => {
-                    totalValue += parseNumericValue(row.amount);
-                });
-
-                // Calculate goal
-                const offices = assignments.map(a => a.office).filter(o => o);
-                let totalGoal = 0;
-                offices.forEach(office => {
-                    totalGoal += getGoalForOffice(configData.goals, dept, office, 'Collection', currentMonth, currentYear);
-                });
-                goalValue = (totalGoal / offices.length) * numberOfDays;
-
-            } else if (dept === 'Outbound Department') {
-                // Calculate production
-                let empProduction = productionData.filter(row => normalizeEmployeeName(row.name) === empCode);
+                }
                 
-                if (startDate) {
-                    const startDateObj = new Date(startDate);
-                    empProduction = empProduction.filter(row => parseDate(row.date) >= startDateObj);
+                if (monthOffices.length > 0) {
+                    let monthTotalCollection = 0, monthTotalProduction = 0, monthTotalAppointment = 0;
+                    let monthTotalCall = 0, monthTotalVerification = 0;
+                    
+                    monthOffices.forEach(office => {
+                        if (!officeGoals[office]) {
+                            officeGoals[office] = { collection: 0, production: 0, appointment: 0, call: 0, verification: 0 };
+                        }
+                        
+                        const officeCollectionGoal = getGoalForOffice(configData.goals, dept, office, 'Collection', month, year);
+                        const officeProductionGoal = getGoalForOffice(configData.goals, dept, office, 'Production', month, year);
+                        const officeAppointmentGoal = getGoalForOffice(configData.goals, dept, office, 'Appointment', month, year);
+                        const officeCallGoal = getGoalForOffice(configData.goals, dept, office, 'Call', month, year);
+                        const officeVerificationGoal = getGoalForOffice(configData.goals, dept, office, 'Verification', month, year);
+                        
+                        officeGoals[office].collection += officeCollectionGoal * daysInThisMonth;
+                        officeGoals[office].production += officeProductionGoal * daysInThisMonth;
+                        officeGoals[office].appointment += officeAppointmentGoal * daysInThisMonth;
+                        officeGoals[office].call += officeCallGoal * daysInThisMonth;
+                        officeGoals[office].verification += officeVerificationGoal * daysInThisMonth;
+                        
+                        monthTotalCollection += officeCollectionGoal * daysInThisMonth;
+                        monthTotalProduction += officeProductionGoal * daysInThisMonth;
+                        monthTotalAppointment += officeAppointmentGoal * daysInThisMonth;
+                        monthTotalCall += officeCallGoal * daysInThisMonth;
+                        monthTotalVerification += officeVerificationGoal * daysInThisMonth;
+                    });
+                    
+                    const officeCount = monthOffices.length;
+                    collectionGoal += monthTotalCollection / officeCount;
+                    productionGoal += monthTotalProduction / officeCount;
+                    appointmentGoal += monthTotalAppointment / officeCount;
+                    callGoal += monthTotalCall / officeCount;
+                    verificationGoal += monthTotalVerification / officeCount;
                 }
-                if (endDate) {
-                    const endDateObj = new Date(endDate);
-                    empProduction = empProduction.filter(row => parseDate(row.date) <= endDateObj);
-                }
-
-                totalValue = empProduction.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
-
-                const offices = assignments.map(a => a.office).filter(o => o);
-                let totalGoal = 0;
-                offices.forEach(office => {
-                    totalGoal += getGoalForOffice(configData.goals, dept, office, 'Production', currentMonth, currentYear);
-                });
-                goalValue = (totalGoal / offices.length) * numberOfDays;
-
-            } else if (dept === 'Verification Department') {
-                let empData = data.filter(row => normalizeEmployeeName(row.name) === empCode);
-                
-                if (startDate) {
-                    const startDateObj = new Date(startDate);
-                    empData = empData.filter(row => parseDate(row.date) >= startDateObj);
-                }
-                if (endDate) {
-                    const endDateObj = new Date(endDate);
-                    empData = empData.filter(row => parseDate(row.date) <= endDateObj);
-                }
-
-                empData.forEach(row => {
-                    const standardTaskName = findTaskName(row.task.trim());
-                    if (standardTaskName === 'Verification' || standardTaskName === 'Verification (M)' || standardTaskName === 'Verification (P)') {
-                        totalValue += parseNumericValue(row.amount);
-                    }
-                });
-
-                const offices = assignments.map(a => a.office).filter(o => o);
-                let totalGoal = 0;
-                offices.forEach(office => {
-                    totalGoal += getGoalForOffice(configData.goals, dept, office, 'Verification', currentMonth, currentYear);
-                });
-                goalValue = (totalGoal / offices.length) * numberOfDays;
             }
+            
+            currentDate.setMonth(currentDate.getMonth() + 1);
+        }
 
-            const performance = goalValue > 0 ? (totalValue / goalValue) * 100 : 0;
+        // Calculate actual values
+        let totalValue = 0;
+        let performance = 0;
 
-            return {
-                name: empCode,
-                department: dept,
-                state: assignments[0]?.state,
-                totalValue,
-                goalValue,
-                performance: Math.min(100, performance)
-            };
-        });
+        if (dept === 'AR Department') {
+            let totalCollectionAmount = 0;
+            empData.forEach(row => {
+                if (row.task.trim().toLowerCase() === 'total balance collected') {
+                    totalCollectionAmount += parseNumericValue(row.collectionAmount);
+                }
+            });
+            empInsPmt.forEach(row => {
+                totalCollectionAmount += parseNumericValue(row.amount);
+            });
+            
+            totalValue = totalCollectionAmount;
+            
+            // Calculate weighted performance by office (same as main calculatePerformance)
+            let totalWeightedPerf = 0;
+            let officeCount = 0;
+            
+            Object.keys(officeGoals).forEach(office => {
+                const officeData = officeGoals[office];
+                if (officeData.collection > 0) {
+                    const collectionRatio = officeData.collection / collectionGoal;
+                    const officeCollection = totalCollectionAmount * collectionRatio;
+                    const officePerf = (officeCollection / officeData.collection) * 100;
+                    totalWeightedPerf += officePerf;
+                    officeCount++;
+                }
+            });
+            
+            performance = officeCount > 0 ? Math.min(100, totalWeightedPerf / officeCount) : 0;
 
-        // Sort by performance
-        employeePerformance.sort((a, b) => b.performance - a.performance);
-        setRankings(employeePerformance);
-    };
+        } else if (dept === 'Outbound Department') {
+            const totalProductionAmount = empProduction.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
+            
+            let totalAppointments = 0;
+            empData.forEach(row => {
+                const standardTaskName = findTaskName(row.task.trim());
+                if (standardTaskName === 'Inbound Appt' || standardTaskName === 'Outbound Appt' || 
+                    standardTaskName === 'Inbound Text Appt' || standardTaskName === 'Outbound Text Appt') {
+                    const amountValue = parseNumericValue(row.amount);
+                    totalAppointments += amountValue > 0 ? amountValue : 1;
+                }
+            });
+            
+            let totalCalls = 0;
+            empData.forEach(row => {
+                const standardTaskName = findTaskName(row.task.trim());
+                if (standardTaskName === 'Outbound Call' || standardTaskName === 'Inbound Call') {
+                    totalCalls += parseNumericValue(row.amount) || 1;
+                }
+            });
+            
+            totalValue = totalProductionAmount;
+            
+            // Calculate weighted performance by office
+            let totalWeightedPerf = 0;
+            let officeCount = 0;
+            
+            Object.keys(officeGoals).forEach(office => {
+                const officeData = officeGoals[office];
+                if (officeData.production > 0 || officeData.appointment > 0 || officeData.call > 0) {
+                    let officeProduction = empProduction.filter(row => row.office === office)
+                        .reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
+                    
+                    const apptGoalRatio = officeData.appointment / appointmentGoal;
+                    const officeAppointments = totalAppointments * apptGoalRatio;
+                    
+                    const callRatio = officeData.call / callGoal;
+                    const officeCalls = totalCalls * callRatio;
+                    
+                    const prodPerf = officeData.production > 0 ? (officeProduction / officeData.production) * 100 : 0;
+                    const apptPerf = officeData.appointment > 0 ? (officeAppointments / officeData.appointment) * 100 : 0;
+                    const callPerf = officeData.call > 0 ? (officeCalls / officeData.call) * 100 : 0;
+                    
+                    const officePerf = (prodPerf + apptPerf + callPerf) / 3;
+                    totalWeightedPerf += officePerf;
+                    officeCount++;
+                }
+            });
+            
+            performance = officeCount > 0 ? Math.min(100, totalWeightedPerf / officeCount) : 0;
+
+        } else if (dept === 'Verification Department') {
+            let userVerificationCount = 0;
+            empData.forEach(row => {
+                const standardTaskName = findTaskName(row.task.trim());
+                if (standardTaskName === 'Verification' || 
+                    standardTaskName === 'Verification (M)' || 
+                    standardTaskName === 'Verification (P)') {
+                    userVerificationCount += parseNumericValue(row.amount);
+                }
+            });
+            
+            totalValue = userVerificationCount;
+            
+            // Calculate weighted performance by office
+            let totalWeightedPerf = 0;
+            let officeCount = 0;
+            
+            Object.keys(officeGoals).forEach(office => {
+                const officeData = officeGoals[office];
+                if (officeData.verification > 0) {
+                    const verificationRatio = officeData.verification / verificationGoal;
+                    const officeVerifications = userVerificationCount * verificationRatio;
+                    const officePerf = (officeVerifications / officeData.verification) * 100;
+                    totalWeightedPerf += officePerf;
+                    officeCount++;
+                }
+            });
+            
+            performance = officeCount > 0 ? Math.min(100, totalWeightedPerf / officeCount) : 0;
+        }
+
+        return {
+            name: empCode,
+            department: dept,
+            state: state,
+            totalValue,
+            performance: Math.min(100, performance)
+        };
+    });
+
+    // Sort by performance
+    employeePerformance.sort((a, b) => b.performance - a.performance);
+    setRankings(employeePerformance);
+};
 
     const getAvailableStates = () => {
         if (!filters.department) return ['Alaska', 'Washington', 'California'];
@@ -4070,6 +4222,7 @@ useEffect(() => {
     </script>
 </body>
 </html>
+
 
 
 
