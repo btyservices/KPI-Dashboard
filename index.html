@@ -2701,6 +2701,57 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                         
                         overallPerformance = officeCount > 0 ? Math.min(100, totalWeightedPerf / officeCount) : 0;
                     } else if (userDepartment === 'AR Department') {
+                        let totalWeightedPerf = 0;
+                        let officeCount = 0;
+                        
+                        Object.keys(officeGoals).forEach(office => {
+                            const officeData = officeGoals[office];
+                            if (officeData.collection > 0) {
+                                const collectionRatio = officeData.collection / collectionGoal;
+                                const officeCollection = totalCollectionAmount * collectionRatio;
+                                
+                                const officePerf = (officeCollection / officeData.collection) * 100;
+                                totalWeightedPerf += officePerf;
+                                officeCount++;
+                            }
+                        });
+                        
+                        overallPerformance = officeCount > 0 ? Math.min(100, totalWeightedPerf / officeCount) : 0;
+                    } else if (userDepartment === 'Verification Department') {
+                        let totalWeightedPerf = 0;
+                        let officeCount = 0;
+                        
+                        Object.keys(officeGoals).forEach(office => {
+                            const officeData = officeGoals[office];
+                            if (officeData.verification > 0) {
+                                const verificationRatio = officeData.verification / verificationGoal;
+                                const officeVerifications = userVerificationCount * verificationRatio;
+                                
+                                const officePerf = (officeVerifications / officeData.verification) * 100;
+                                totalWeightedPerf += officePerf;
+                                officeCount++;
+                            }
+                        });
+                        
+                        overallPerformance = officeCount > 0 ? Math.min(100, totalWeightedPerf / officeCount) : 0;
+                    }
+
+                    return { 
+                        overallPerformance, 
+                        department: userDepartment, 
+                        state: userState, 
+                        totalCollectionAmount: totalCollectionAmount.toFixed(2), 
+                        totalProductionAmount: totalProductionAmount.toFixed(2), 
+                        verificationCount: userVerificationCount 
+                    };
+                } catch (error) {
+                    console.error('Error calculating performance for employee:', error);
+                    return { overallPerformance: 0, department: 'Unassigned', state: 'N/A', totalCollectionAmount: '0', totalProductionAmount: '0', verificationCount: 0 };
+                }
+            };
+
+            return {
+                
                         // Calculate weighted performance for each office
                         let totalWeightedPerf = 0;
                         let officeCount = 0;
@@ -4204,6 +4255,7 @@ useEffect(() => {
     </script>
 </body>
 </html>
+
 
 
 
