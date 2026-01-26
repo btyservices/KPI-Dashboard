@@ -2662,7 +2662,7 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                     const sortedTasks = Object.entries(taskCounts).sort((a, b) => b[1] - a[1]);
                     const sortedUnlistedTasks = Object.entries(unlistedTasks).sort((a, b) => b[1] - a[1]);
 
-                    // Calculate overall performance based on department (Option B: weighted by office goals)
+                   // Calculate overall performance based on department (Option B: weighted by office goals)
                     let overallPerformance = 0;
                     if (userDepartment === 'Outbound Department') {
                         // Calculate weighted performance for each office
@@ -2749,48 +2749,6 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                     return { overallPerformance: 0, department: 'Unassigned', state: 'N/A', totalCollectionAmount: '0', totalProductionAmount: '0', verificationCount: 0 };
                 }
             };
-
-            return {
-                
-                        // Calculate weighted performance for each office
-                        let totalWeightedPerf = 0;
-                        let officeCount = 0;
-                        
-                        Object.keys(officeGoals).forEach(office => {
-                            const officeData = officeGoals[office];
-                            if (officeData.collection > 0) {
-                                // Get actual collections for this office
-                                // Collection data comes from multiple sources - we'll distribute proportionally
-                                const collectionRatio = officeData.collection / collectionGoal;
-                                const officeCollection = totalCollectionAmount * collectionRatio;
-                                
-                                const officePerf = (officeCollection / officeData.collection) * 100;
-                                totalWeightedPerf += officePerf;
-                                officeCount++;
-                            }
-                        });
-                        
-                        overallPerformance = officeCount > 0 ? Math.min(100, totalWeightedPerf / officeCount) : 0;
-                    } else if (userDepartment === 'Verification Department') {
-                        // Calculate weighted performance for each office
-                        let totalWeightedPerf = 0;
-                        let officeCount = 0;
-                        
-                        Object.keys(officeGoals).forEach(office => {
-                            const officeData = officeGoals[office];
-                            if (officeData.verification > 0) {
-                                // Distribute verifications proportionally
-                                const verificationRatio = officeData.verification / verificationGoal;
-                                const officeVerifications = userVerificationCount * verificationRatio;
-                                
-                                const officePerf = (officeVerifications / officeData.verification) * 100;
-                                totalWeightedPerf += officePerf;
-                                officeCount++;
-                            }
-                        });
-                        
-                        overallPerformance = officeCount > 0 ? Math.min(100, totalWeightedPerf / officeCount) : 0;
-                    }
 
                     // NEW: Prepare Pie Chart Data with scope and metric options
                     let pieChartData = [];
@@ -4255,6 +4213,7 @@ useEffect(() => {
     </script>
 </body>
 </html>
+
 
 
 
