@@ -3581,6 +3581,13 @@ else if (type === 'performance') {
     const officeBreakdown = [];
     let totalActual = 0;
     let totalGoal = 0;
+    
+    // Track totals for each metric type across all offices
+    let totalCollectionActual = 0, totalCollectionGoal = 0;
+    let totalProductionActual = 0, totalProductionGoal = 0;
+    let totalAppointmentActual = 0, totalAppointmentGoal = 0;
+    let totalCallActual = 0, totalCallGoal = 0;
+    let totalVerificationActual = 0, totalVerificationGoal = 0;
         
         // NEW: Calculate Patient Collection first (for AR Department)
         if (performance.department === 'AR Department') {
@@ -3607,8 +3614,8 @@ else if (type === 'performance') {
             const avgPatientGoal = performance.offices.length > 0 ? totalOfficeGoals / performance.offices.length : 0;
             const patientPerf = avgPatientGoal > 0 ? (patientCollectionTotal / avgPatientGoal * 100) : 0;
             
-            totalActual += patientCollectionTotal;
-            totalGoal += avgPatientGoal;
+            totalCollectionActual += patientCollectionTotal;
+            totalCollectionGoal += avgPatientGoal;
             
             // Add Patient Collection to breakdown
             officeBreakdown.push({
@@ -3627,7 +3634,7 @@ else if (type === 'performance') {
             let officePerf = 0;
             
             if (performance.department === 'AR Department') {
-                // Get office-specific collection from API collection sheets (same logic as Collection Breakdown)
+                // Get office-specific collection from API collection sheets
                     const officeDataCollection = insPmtData.filter(row => {
                         const normalized = normalizeEmployeeName(row.name);
                         const rowDate = parseDate(row.date);
@@ -3638,7 +3645,6 @@ else if (type === 'performance') {
                         const sourceOffice = row.source.replace('Collection-', '');
                         inRange = inRange && sourceOffice === office;
                     } else {
-                // If source doesn't have Collection- prefix, skip this row for office-specific data
                         return false;
                     }
 
@@ -3652,11 +3658,8 @@ else if (type === 'performance') {
                 const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
                 const collPerf = officeGoal > 0 ? (officeCollectionAmount / officeGoal * 100) : 0;
 
-                const gap = officeGoal - officeCollectionAmount;
-                const gapText = collPerf >= 100 ? '✅ Goal exceeded!' : `Need $${gap.toFixed(2)} more`;
-
-                totalActual += officeCollectionAmount;
-                totalGoal += officeGoal;
+                totalCollectionActual += officeCollectionAmount;
+                totalCollectionGoal += officeGoal;
 
                 metrics.push({
                     label: 'Collection',
@@ -3678,9 +3681,8 @@ else if (type === 'performance') {
                 const prodGoal = getGoalForOffice(configData.goals, performance.department, office, 'Production', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
                 const prodPerf = prodGoal > 0 ? (officeProduction / prodGoal * 100) : 0;
                 
-                // Production
-                totalActual += officeProduction;
-                totalGoal += prodGoal;
+                totalProductionActual += officeProduction;
+                totalProductionGoal += prodGoal;
 
                 metrics.push({
                     label: 'Production',
@@ -3693,7 +3695,9 @@ else if (type === 'performance') {
                 const officeAppointments = performance.totalAppointments * apptRatio;
                 const apptPerf = apptGoal > 0 ? (officeAppointments / apptGoal * 100) : 0;
 
-                // Appointments
+                totalAppointmentActual += officeAppointments;
+                totalAppointmentGoal += apptGoal;
+
                 metrics.push({
                     label: 'Appointments',
                     value: `${Math.round(officeAppointments)} / ${Math.round(apptGoal)} (${apptPerf.toFixed(1)}%)`
@@ -3705,7 +3709,9 @@ else if (type === 'performance') {
                 const officeCalls = performance.totalCalls * callRatio;
                 const callPerf = callGoal > 0 ? (officeCalls / callGoal * 100) : 0;
                 
-                // Calls
+                totalCallActual += officeCalls;
+                totalCallGoal += callGoal;
+
                 metrics.push({
                     label: 'Calls',
                     value: `${Math.round(officeCalls)} / ${Math.round(callGoal)} (${callPerf.toFixed(1)}%)`
@@ -3719,8 +3725,8 @@ else if (type === 'performance') {
                 const officeVerifications = performance.verificationCount * verificationRatio;
                 const verPerf = officeGoal > 0 ? (officeVerifications / officeGoal * 100) : 0;
                 
-                totalActual += officeVerifications;
-                totalGoal += officeGoal;
+                totalVerificationActual += officeVerifications;
+                totalVerificationGoal += officeGoal;
 
                 metrics.push({
                     label: 'Verifications',
@@ -3744,12 +3750,34 @@ else if (type === 'performance') {
             overallPerf = Math.round(totalPerf / officeBreakdown.length);
         }
         
-        // Calculate overall gap
-        const overallGap = totalGoal - totalActual;
-        const gapText = totalActual >= totalGoal ? '✅ Goal exceeded!' : 
-            performance.department === 'AR Department' ? `Need $${overallGap.toFixed(2)} more` :
-            performance.department === 'Outbound Department' ? `Need $${overallGap.toFixed(2)} more` :
-            `Need ${Math.ceil(overallGap)} more`;
+        // Calculate comprehensive gap based on department
+        let gapText = '';
+        if (performance.department === 'AR Department') {
+            const collectionGap = totalCollectionGoal - totalCollectionActual;
+            gapText = totalCollectionActual >= totalCollectionGoal 
+                ? '✅ Goal exceeded!' 
+                : `Need $${collectionGap.toFixed(2)} more in collection`;
+        } else if (performance.department === 'Outbound Department') {
+            const productionGap = totalProductionGoal - totalProductionActual;
+            const appointmentGap = totalAppointmentGoal - totalAppointmentActual;
+            const callGap = totalCallGoal - totalCallActual;
+            
+            const gaps = [];
+            if (productionGap > 0) gaps.push(`$${productionGap.toFixed(2)} production`);
+            if (appointmentGap > 0) gaps.push(`${Math.ceil(appointmentGap)} appointments`);
+            if (callGap > 0) gaps.push(`${Math.ceil(callGap)} calls`);
+            
+            if (gaps.length === 0) {
+                gapText = '✅ All goals exceeded!';
+            } else {
+                gapText = `Need: ${gaps.join(', ')}`;
+            }
+        } else if (performance.department === 'Verification Department') {
+            const verificationGap = totalVerificationGoal - totalVerificationActual;
+            gapText = totalVerificationActual >= totalVerificationGoal
+                ? '✅ Goal exceeded!'
+                : `Need ${Math.ceil(verificationGap)} more verifications`;
+        }
 
         breakdown = {
             officeBreakdown: officeBreakdown,
@@ -4266,6 +4294,7 @@ useEffect(() => {
     </script>
 </body>
 </html>
+
 
 
 
