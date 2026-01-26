@@ -168,7 +168,7 @@
             name = name.replace(/^\d+\.?\d*\s+/, '');
             if (name.includes(' - ')) name = name.split(' - ')[0].trim();
             name = name.replace(/\s+[RP]$/i, '');
-            
+        
             const upperName = name.toUpperCase();
             if (employeeNameMapping[upperName]) return employeeNameMapping[upperName];
             
@@ -1788,7 +1788,7 @@ const RankingSidebar = ({ isOpen, onClose, startDate, endDate, configData, data,
                 }
             });
             
-            performance = officeCount > 0 ? Math.min(100, totalWeightedPerf / officeCount) : 0;
+            performance = officeCount > 0 ? totalWeightedPerf / officeCount : 0;
 
         } else if (dept === 'Outbound Department') {
             const totalProductionAmount = empProduction.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
@@ -1839,7 +1839,7 @@ const RankingSidebar = ({ isOpen, onClose, startDate, endDate, configData, data,
                 }
             });
             
-            performance = officeCount > 0 ? Math.min(100, totalWeightedPerf / officeCount) : 0;
+            performance = officeCount > 0 ? totalWeightedPerf / officeCount : 0;
 
         } else if (dept === 'Verification Department') {
             let userVerificationCount = 0;
@@ -1869,7 +1869,7 @@ const RankingSidebar = ({ isOpen, onClose, startDate, endDate, configData, data,
                 }
             });
             
-            performance = officeCount > 0 ? Math.min(100, totalWeightedPerf / officeCount) : 0;
+            performance = officeCount > 0 ? totalWeightedPerf / officeCount : 0;
         }
 
         return {
@@ -1877,7 +1877,7 @@ const RankingSidebar = ({ isOpen, onClose, startDate, endDate, configData, data,
             department: dept,
             state: state,
             totalValue,
-            performance: Math.min(100, performance)
+            performance: performance
         };
     });
 
@@ -2718,7 +2718,7 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                             }
                         });
                         
-                        overallPerformance = officeCount > 0 ? Math.min(100, totalWeightedPerf / officeCount) : 0;
+                        overallPerformance = officeCount > 0 ? totalWeightedPerf / officeCount : 0;
                     } else if (userDepartment === 'AR Department') {
                         // Calculate weighted performance for each office
                         let totalWeightedPerf = 0;
@@ -2738,7 +2738,7 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                             }
                         });
                         
-                        overallPerformance = officeCount > 0 ? Math.min(100, totalWeightedPerf / officeCount) : 0;
+                        overallPerformance = officeCount > 0 ? totalWeightedPerf / officeCount : 0;
                     } else if (userDepartment === 'Verification Department') {
                         // Calculate weighted performance for each office
                         let totalWeightedPerf = 0;
@@ -2757,7 +2757,7 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                             }
                         });
                         
-                        overallPerformance = officeCount > 0 ? Math.min(100, totalWeightedPerf / officeCount) : 0;
+                        overallPerformance = officeCount > 0 ? totalWeightedPerf / officeCount : 0;
                     }
 
                     // NEW: Prepare Pie Chart Data with scope and metric options
@@ -3396,9 +3396,16 @@ const BreakdownModal = ({ type, data, onClose }) => {
                                     </div>
                                     <div className="space-y-2 text-sm">
                                         {office.metrics.map((metric, i) => (
-                                            <div key={i} className="flex items-center justify-between text-slate-300">
-                                                <span>{metric.label}</span>
-                                                <span className="font-semibold">{metric.value}</span>
+                                            <div key={i}>
+                                                <div className="flex items-center justify-between text-slate-300">
+                                                    <span>{metric.label}</span>
+                                                    <span className="font-semibold">{metric.value}</span>
+                                                </div>
+                                                {metric.gap && (
+                                                    <div className={`text-xs mt-1 ${metric.gap.includes('✅') ? 'text-green-400' : 'text-amber-400'}`}>
+                                                        {metric.gap}
+                                                    </div>
+                                                  )}
                                             </div>
                                         ))}
                                     </div>
@@ -3631,9 +3638,13 @@ else if (type === 'performance') {
                 const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
                 const collPerf = officeGoal > 0 ? (officeCollectionAmount / officeGoal * 100) : 0;
 
+                const gap = officeGoal - officeCollectionAmount;
+                const gapText = collPerf >= 100 ? '✅ Goal exceeded!' : `Need $${gap.toFixed(2)} more`;
+
                 metrics.push({
                     label: 'Collection',
-                    value: `$${officeCollectionAmount.toFixed(2)} / $${officeGoal.toFixed(2)} (${collPerf.toFixed(1)}%)`
+                    value: `$${officeCollectionAmount.toFixed(2)} / $${officeGoal.toFixed(2)} (${collPerf.toFixed(1)}%)`,
+                    gap: gapText
                 });
 
                 officePerf = collPerf;
@@ -3651,9 +3662,14 @@ else if (type === 'performance') {
                 const prodGoal = getGoalForOffice(configData.goals, performance.department, office, 'Production', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
                 const prodPerf = prodGoal > 0 ? (officeProduction / prodGoal * 100) : 0;
                 
+                // Production
+                const prodGap = prodGoal - officeProduction;
+                const prodGapText = prodPerf >= 100 ? '✅ Goal exceeded!' : `Need $${prodGap.toFixed(2)} more`;
+
                 metrics.push({
                     label: 'Production',
-                    value: `$${officeProduction.toFixed(2)} / $${prodGoal.toFixed(2)} (${prodPerf.toFixed(1)}%)`
+                    value: `$${officeProduction.toFixed(2)} / $${prodGoal.toFixed(2)} (${prodPerf.toFixed(1)}%)`,
+                    gap: prodGapText
                 });
                 
                 // Appointments - distribute proportionally by office goal
@@ -3662,9 +3678,14 @@ else if (type === 'performance') {
                 const officeAppointments = performance.totalAppointments * apptRatio;
                 const apptPerf = apptGoal > 0 ? (officeAppointments / apptGoal * 100) : 0;
 
+                // Appointments
+                const apptGap = apptGoal - officeAppointments;
+                const apptGapText = apptPerf >= 100 ? '✅ Goal exceeded!' : `Need ${Math.ceil(apptGap)} more`;
+
                 metrics.push({
                     label: 'Appointments',
-                    value: `${Math.round(officeAppointments)} / ${Math.round(apptGoal)} (${apptPerf.toFixed(1)}%)`
+                    value: `${Math.round(officeAppointments)} / ${Math.round(apptGoal)} (${apptPerf.toFixed(1)}%)`,
+                    gap: apptGapText
                 });
                 
                 // Calls - distribute proportionally by office goal
@@ -3673,9 +3694,14 @@ else if (type === 'performance') {
                 const officeCalls = performance.totalCalls * callRatio;
                 const callPerf = callGoal > 0 ? (officeCalls / callGoal * 100) : 0;
                 
+                // Calls
+                const callGap = callGoal - officeCalls;
+                const callGapText = callPerf >= 100 ? '✅ Goal exceeded!' : `Need ${Math.ceil(callGap)} more`;
+
                 metrics.push({
                     label: 'Calls',
-                    value: `${Math.round(officeCalls)} / ${Math.round(callGoal)} (${callPerf.toFixed(1)}%)`
+                    value: `${Math.round(officeCalls)} / ${Math.round(callGoal)} (${callPerf.toFixed(1)}%)`,
+                    gap: callGapText
                 });
                         
                 officePerf = (prodPerf + apptPerf + callPerf) / 3;
@@ -3686,9 +3712,13 @@ else if (type === 'performance') {
                 const officeVerifications = performance.verificationCount * verificationRatio;
                 const verPerf = officeGoal > 0 ? (officeVerifications / officeGoal * 100) : 0;
                 
+                const gap = officeGoal - officeVerifications;
+                const gapText = verPerf >= 100 ? '✅ Goal exceeded!' : `Need ${Math.ceil(gap)} more`;
+
                 metrics.push({
                     label: 'Verifications',
-                    value: `${Math.round(officeVerifications)} / ${Math.round(officeGoal)} (${verPerf.toFixed(1)}%)`
+                    value: `${Math.round(officeVerifications)} / ${Math.round(officeGoal)} (${verPerf.toFixed(1)}%)`,
+                    gap: gapText
                 });
                 
                 officePerf = verPerf;
@@ -4222,6 +4252,7 @@ useEffect(() => {
     </script>
 </body>
 </html>
+
 
 
 
