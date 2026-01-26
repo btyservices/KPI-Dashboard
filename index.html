@@ -3419,6 +3419,15 @@ const BreakdownModal = ({ type, data, onClose }) => {
                                 <span className="text-cyan-400 font-bold text-xl">{data.overall}%</span>
                             </div>
                         </div>
+
+                        {data.overallGap && (
+                            <div className={`rounded-xl p-4 border mt-4 ${data.overallGap.includes('✅') ? 'bg-green-900/30 border-green-500/30' : 'bg-amber-900/30 border-amber-500/30'}`}>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-white font-semibold">Gap to Goal</span>
+                                    <span className={`font-bold text-xl ${data.overallGap.includes('✅') ? 'text-green-400' : 'text-amber-400'}`}>{data.overallGap}</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="space-y-3">
@@ -3570,6 +3579,8 @@ else if (type === 'production') {
 
 else if (type === 'performance') {
     const officeBreakdown = [];
+    let totalActual = 0;
+    let totalGoal = 0;
         
         // NEW: Calculate Patient Collection first (for AR Department)
         if (performance.department === 'AR Department') {
@@ -3595,6 +3606,9 @@ else if (type === 'performance') {
             });
             const avgPatientGoal = performance.offices.length > 0 ? totalOfficeGoals / performance.offices.length : 0;
             const patientPerf = avgPatientGoal > 0 ? (patientCollectionTotal / avgPatientGoal * 100) : 0;
+            
+            totalActual += patientCollectionTotal;
+            totalGoal += avgPatientGoal;
             
             // Add Patient Collection to breakdown
             officeBreakdown.push({
@@ -3641,10 +3655,12 @@ else if (type === 'performance') {
                 const gap = officeGoal - officeCollectionAmount;
                 const gapText = collPerf >= 100 ? '✅ Goal exceeded!' : `Need $${gap.toFixed(2)} more`;
 
+                totalActual += officeCollectionAmount;
+                totalGoal += officeGoal;
+
                 metrics.push({
                     label: 'Collection',
-                    value: `$${officeCollectionAmount.toFixed(2)} / $${officeGoal.toFixed(2)} (${collPerf.toFixed(1)}%)`,
-                    gap: gapText
+                    value: `$${officeCollectionAmount.toFixed(2)} / $${officeGoal.toFixed(2)} (${collPerf.toFixed(1)}%)`
                 });
 
                 officePerf = collPerf;
@@ -3663,13 +3679,12 @@ else if (type === 'performance') {
                 const prodPerf = prodGoal > 0 ? (officeProduction / prodGoal * 100) : 0;
                 
                 // Production
-                const prodGap = prodGoal - officeProduction;
-                const prodGapText = prodPerf >= 100 ? '✅ Goal exceeded!' : `Need $${prodGap.toFixed(2)} more`;
+                totalActual += officeProduction;
+                totalGoal += prodGoal;
 
                 metrics.push({
                     label: 'Production',
-                    value: `$${officeProduction.toFixed(2)} / $${prodGoal.toFixed(2)} (${prodPerf.toFixed(1)}%)`,
-                    gap: prodGapText
+                    value: `$${officeProduction.toFixed(2)} / $${prodGoal.toFixed(2)} (${prodPerf.toFixed(1)}%)`
                 });
                 
                 // Appointments - distribute proportionally by office goal
@@ -3679,13 +3694,9 @@ else if (type === 'performance') {
                 const apptPerf = apptGoal > 0 ? (officeAppointments / apptGoal * 100) : 0;
 
                 // Appointments
-                const apptGap = apptGoal - officeAppointments;
-                const apptGapText = apptPerf >= 100 ? '✅ Goal exceeded!' : `Need ${Math.ceil(apptGap)} more`;
-
                 metrics.push({
                     label: 'Appointments',
-                    value: `${Math.round(officeAppointments)} / ${Math.round(apptGoal)} (${apptPerf.toFixed(1)}%)`,
-                    gap: apptGapText
+                    value: `${Math.round(officeAppointments)} / ${Math.round(apptGoal)} (${apptPerf.toFixed(1)}%)`
                 });
                 
                 // Calls - distribute proportionally by office goal
@@ -3695,13 +3706,9 @@ else if (type === 'performance') {
                 const callPerf = callGoal > 0 ? (officeCalls / callGoal * 100) : 0;
                 
                 // Calls
-                const callGap = callGoal - officeCalls;
-                const callGapText = callPerf >= 100 ? '✅ Goal exceeded!' : `Need ${Math.ceil(callGap)} more`;
-
                 metrics.push({
                     label: 'Calls',
-                    value: `${Math.round(officeCalls)} / ${Math.round(callGoal)} (${callPerf.toFixed(1)}%)`,
-                    gap: callGapText
+                    value: `${Math.round(officeCalls)} / ${Math.round(callGoal)} (${callPerf.toFixed(1)}%)`
                 });
                         
                 officePerf = (prodPerf + apptPerf + callPerf) / 3;
@@ -3712,17 +3719,16 @@ else if (type === 'performance') {
                 const officeVerifications = performance.verificationCount * verificationRatio;
                 const verPerf = officeGoal > 0 ? (officeVerifications / officeGoal * 100) : 0;
                 
-                const gap = officeGoal - officeVerifications;
-                const gapText = verPerf >= 100 ? '✅ Goal exceeded!' : `Need ${Math.ceil(gap)} more`;
+                totalActual += officeVerifications;
+                totalGoal += officeGoal;
 
                 metrics.push({
                     label: 'Verifications',
-                    value: `${Math.round(officeVerifications)} / ${Math.round(officeGoal)} (${verPerf.toFixed(1)}%)`,
-                    gap: gapText
+                    value: `${Math.round(officeVerifications)} / ${Math.round(officeGoal)} (${verPerf.toFixed(1)}%)`
                 });
-                
+
                 officePerf = verPerf;
-            }
+               }
             
             officeBreakdown.push({
                 name: office,
@@ -3738,9 +3744,17 @@ else if (type === 'performance') {
             overallPerf = Math.round(totalPerf / officeBreakdown.length);
         }
         
+        // Calculate overall gap
+        const overallGap = totalGoal - totalActual;
+        const gapText = totalActual >= totalGoal ? '✅ Goal exceeded!' : 
+            performance.department === 'AR Department' ? `Need $${overallGap.toFixed(2)} more` :
+            performance.department === 'Outbound Department' ? `Need $${overallGap.toFixed(2)} more` :
+            `Need ${Math.ceil(overallGap)} more`;
+
         breakdown = {
             officeBreakdown: officeBreakdown,
             overall: overallPerf,
+            overallGap: gapText,
             explanation: performance.department === 'AR Department'
                 ? performance.offices.length > 1 
                     ? `Your overall performance is the average of Patient Collection and all ${performance.offices.length} offices you're assigned to. Patient Collection goal is the average of all office goals. Each office's performance is calculated based on your actual results compared to the goals for that office.`
@@ -4252,6 +4266,7 @@ useEffect(() => {
     </script>
 </body>
 </html>
+
 
 
 
