@@ -3750,31 +3750,47 @@ else if (type === 'performance') {
             overallPerf = Math.round(totalPerf / officeBreakdown.length);
         }
         
-        // Calculate comprehensive gap based on department
+        // Calculate comprehensive gap based on department (using AVERAGES, not totals)
         let gapText = '';
         if (performance.department === 'AR Department') {
-            const collectionGap = totalCollectionGoal - totalCollectionActual;
-            gapText = totalCollectionActual >= totalCollectionGoal 
+            const numOffices = officeBreakdown.length;
+            const avgCollectionGoal = totalCollectionGoal / numOffices;
+            const avgCollectionActual = totalCollectionActual / numOffices;
+            const collectionGap = avgCollectionGoal - avgCollectionActual;
+    
+            gapText = avgCollectionActual >= avgCollectionGoal 
                 ? '✅ Goal exceeded!' 
                 : `Need $${collectionGap.toFixed(2)} more in collection`;
         } else if (performance.department === 'Outbound Department') {
-            const productionGap = totalProductionGoal - totalProductionActual;
-            const appointmentGap = totalAppointmentGoal - totalAppointmentActual;
-            const callGap = totalCallGoal - totalCallActual;
-            
+            const numOffices = performance.offices.length;
+            const avgProductionGoal = totalProductionGoal / numOffices;
+            const avgProductionActual = totalProductionActual / numOffices;
+            const avgAppointmentGoal = totalAppointmentGoal / numOffices;
+            const avgAppointmentActual = totalAppointmentActual / numOffices;
+            const avgCallGoal = totalCallGoal / numOffices;
+            const avgCallActual = totalCallActual / numOffices;
+    
+            const productionGap = avgProductionGoal - avgProductionActual;
+            const appointmentGap = avgAppointmentGoal - avgAppointmentActual;
+            const callGap = avgCallGoal - avgCallActual;
+    
             const gaps = [];
             if (productionGap > 0) gaps.push(`$${productionGap.toFixed(2)} production`);
             if (appointmentGap > 0) gaps.push(`${Math.ceil(appointmentGap)} appointments`);
             if (callGap > 0) gaps.push(`${Math.ceil(callGap)} calls`);
-            
+    
             if (gaps.length === 0) {
                 gapText = '✅ All goals exceeded!';
             } else {
                 gapText = `Need: ${gaps.join(', ')}`;
             }
         } else if (performance.department === 'Verification Department') {
-            const verificationGap = totalVerificationGoal - totalVerificationActual;
-            gapText = totalVerificationActual >= totalVerificationGoal
+            const numOffices = performance.offices.length;
+            const avgVerificationGoal = totalVerificationGoal / numOffices;
+            const avgVerificationActual = totalVerificationActual / numOffices;
+            const verificationGap = avgVerificationGoal - avgVerificationActual;
+    
+            gapText = avgVerificationActual >= avgVerificationGoal
                 ? '✅ Goal exceeded!'
                 : `Need ${Math.ceil(verificationGap)} more verifications`;
         }
@@ -4294,6 +4310,7 @@ useEffect(() => {
     </script>
 </body>
 </html>
+
 
 
 
