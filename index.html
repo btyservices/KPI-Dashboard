@@ -2524,15 +2524,26 @@ console.log(`📅 ${month}/${year} - Working days in range: ${daysInThisMonth}`)
                 monthTotalVerification += officeVerificationGoal * daysInThisMonth;
             });
             
-            // Calculate AVERAGE for this month and add to employee's total
+            // For single office: use the goal directly
+            // For multiple offices: calculate the average
             const officeCount = monthOffices.length;
-            collectionGoal += monthTotalCollection / officeCount;
-            productionGoal += monthTotalProduction / officeCount;
-            appointmentGoal += monthTotalAppointment / officeCount;
-            callGoal += monthTotalCall / officeCount;
-            verificationGoal += monthTotalVerification / officeCount;
+            if (officeCount === 1) {
+                // Single office - use the goal as-is
+                collectionGoal += monthTotalCollection;
+                productionGoal += monthTotalProduction;
+                appointmentGoal += monthTotalAppointment;
+                callGoal += monthTotalCall;
+                verificationGoal += monthTotalVerification;
+            } else {
+                // Multiple offices - use the average
+                collectionGoal += monthTotalCollection / officeCount;
+                productionGoal += monthTotalProduction / officeCount;
+                appointmentGoal += monthTotalAppointment / officeCount;
+                callGoal += monthTotalCall / officeCount;
+                verificationGoal += monthTotalVerification / officeCount;
+            }
             
-            console.log(`📊 Month ${month}/${year}: ${officeCount} offices, avg daily goal: ${(monthTotalCollection / officeCount / daysInThisMonth).toFixed(2)}`);
+            console.log(`📊 Month ${month}/${year}: ${officeCount} office(s), ${officeCount === 1 ? 'actual' : 'avg'} daily goal: ${((officeCount === 1 ? monthTotalCollection : monthTotalCollection / officeCount) / daysInThisMonth).toFixed(2)}`);
         }
     }
     
@@ -3515,27 +3526,29 @@ const handleCardClick = (type) => {
         totalCollection += patientCollectionTotal;
     }
     
-    // Get office-specific collection from API collection sheets
-    performance.offices.forEach(office => {
-        const officeDataCollection = insPmtData.filter(row => {
-            const normalized = normalizeEmployeeName(row.name);
-            const rowDate = parseDate(row.date);
-            let inRange = normalized === selectedName;
-            
-            // Check if source indicates this office
-            if (row.source && row.source.includes('Collection-')) {
-                const sourceOffice = row.source.replace('Collection-', '');
-                inRange = inRange && sourceOffice === office;
-            } else {
-                inRange = false;
-            }
-            
-            if (startDate) inRange = inRange && rowDate >= new Date(startDate);
-            if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-            return inRange;
-        });
-        
-        const officeCollectionAmount = officeDataCollection.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
+    // Get ALL offices from the data where this employee has collections (not just assigned offices)
+    const employeeCollectionData = insPmtData.filter(row => {
+        const normalized = normalizeEmployeeName(row.name);
+        const rowDate = parseDate(row.date);
+        let inRange = normalized === selectedName;
+        if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+        if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+        return inRange && row.source && row.source.includes('Collection-');
+    });
+    
+    // Group by office
+    const officeCollections = {};
+    employeeCollectionData.forEach(row => {
+        const sourceOffice = row.source.replace('Collection-', '');
+        if (!officeCollections[sourceOffice]) {
+            officeCollections[sourceOffice] = 0;
+        }
+        officeCollections[sourceOffice] += parseNumericValue(row.amount);
+    });
+    
+    // Add each office with collections
+    Object.keys(officeCollections).sort().forEach(office => {
+        const officeCollectionAmount = officeCollections[office];
         
         if (officeCollectionAmount > 0) {
             const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear());
@@ -3562,17 +3575,29 @@ else if (type === 'production') {
     const items = [];
     let totalProduction = 0;
     
-    performance.offices.forEach(office => {
-        const officeDataProduction = productionData.filter(row => {
-            const normalized = normalizeEmployeeName(row.name);
-            const rowDate = parseDate(row.date);
-            let inRange = normalized === selectedName && row.office === office;
-            if (startDate) inRange = inRange && rowDate >= new Date(startDate);
-            if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-            return inRange;
-        });
-        
-        const officeProductionAmount = officeDataProduction.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
+    // Get ALL offices from the data where this employee has production (not just assigned offices)
+    const employeeProductionData = productionData.filter(row => {
+        const normalized = normalizeEmployeeName(row.name);
+        const rowDate = parseDate(row.date);
+        let inRange = normalized === selectedName;
+        if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+        if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+        return inRange;
+    });
+    
+    // Group by office
+    const officeProductions = {};
+    employeeProductionData.forEach(row => {
+        const office = row.office;
+        if (!officeProductions[office]) {
+            officeProductions[office] = 0;
+        }
+        officeProductions[office] += parseNumericValue(row.amount);
+    });
+    
+    // Add each office with production
+    Object.keys(officeProductions).sort().forEach(office => {
+        const officeProductionAmount = officeProductions[office];
         
         if (officeProductionAmount > 0) {
             const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Production', new Date().getMonth() + 1, new Date().getFullYear());
@@ -3623,7 +3648,7 @@ else if (type === 'performance') {
                 patientCollectionTotal += parseNumericValue(row.collectionAmount);
             });
             
-            // Calculate average goal from all assigned offices
+            // Calculate average goal from ASSIGNED offices only
             let totalOfficeGoals = 0;
             performance.offices.forEach(office => {
                 const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
@@ -3646,17 +3671,43 @@ else if (type === 'performance') {
             });
         }
         
-        // Process each office
-        performance.offices.forEach(office => {
+        // Get ALL offices where employee has actual data
+        let allOfficesWithData = new Set();
+        
+        if (performance.department === 'AR Department') {
+            // Get all offices from collection data
+            insPmtData.forEach(row => {
+                const normalized = normalizeEmployeeName(row.name);
+                if (normalized === selectedName && row.source && row.source.includes('Collection-')) {
+                    const sourceOffice = row.source.replace('Collection-', '');
+                    allOfficesWithData.add(sourceOffice);
+                }
+            });
+        } else if (performance.department === 'Outbound Department') {
+            // Get all offices from production data
+            productionData.forEach(row => {
+                const normalized = normalizeEmployeeName(row.name);
+                if (normalized === selectedName && row.office) {
+                    allOfficesWithData.add(row.office);
+                }
+            });
+        } else if (performance.department === 'Verification Department') {
+            // For verification, use assigned offices
+            performance.offices.forEach(office => allOfficesWithData.add(office));
+        }
+        
+        // Process each office that has data
+        allOfficesWithData.forEach(office => {
             const metrics = [];
             let officePerf = 0;
             
             if (performance.department === 'AR Department') {
+                if (performance.department === 'AR Department') {
                 // Get office-specific collection from API collection sheets
-                    const officeDataCollection = insPmtData.filter(row => {
-                        const normalized = normalizeEmployeeName(row.name);
-                        const rowDate = parseDate(row.date);
-                        let inRange = normalized === selectedName;
+                const officeDataCollection = insPmtData.filter(row => {
+                    const normalized = normalizeEmployeeName(row.name);
+                    const rowDate = parseDate(row.date);
+                    let inRange = normalized === selectedName;
 
                     // Check if source indicates this office
                     if (row.source && row.source.includes('Collection-')) {
@@ -3673,15 +3724,24 @@ else if (type === 'performance') {
 
                 const officeCollectionAmount = officeDataCollection.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
 
-                const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
+                // Only calculate goal if this is an ASSIGNED office
+                const isAssignedOffice = performance.offices.includes(office);
+                const officeGoal = isAssignedOffice 
+                    ? getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays
+                    : 0;
                 const collPerf = officeGoal > 0 ? (officeCollectionAmount / officeGoal * 100) : 0;
 
-                totalCollectionActual += officeCollectionAmount;
-                totalCollectionGoal += officeGoal;
+                // Only add to totals if this is an assigned office
+                if (isAssignedOffice) {
+                    totalCollectionActual += officeCollectionAmount;
+                    totalCollectionGoal += officeGoal;
+                }
 
                 metrics.push({
                     label: 'Collection',
-                    value: `$${officeCollectionAmount.toFixed(2)} / $${officeGoal.toFixed(2)} (${collPerf.toFixed(1)}%)`
+                    value: officeGoal > 0 
+                        ? `$${officeCollectionAmount.toFixed(2)} / $${officeGoal.toFixed(2)} (${collPerf.toFixed(1)}%)`
+                        : `$${officeCollectionAmount.toFixed(2)} (not assigned)`
                 });
 
                 officePerf = collPerf;
@@ -4328,6 +4388,7 @@ useEffect(() => {
     </script>
 </body>
 </html>
+
 
 
 
