@@ -436,10 +436,10 @@
                     emp.effectiveYear === year
                 );
             } else {
-                // Get all assignments up to and including this month/year
-                applicable = employees.filter(emp => {
+                // Get the MOST RECENT assignment(s) up to and including this month/year
+                const allPriorAssignments = employees.filter(emp => {
                     if (emp.employeeCode !== employeeCode) return false;
-            
+                    
                     // Assignment is before the target year - include it
                     if (emp.effectiveYear < year) return true;
             
@@ -449,16 +449,26 @@
                     // Assignment is after the target date - exclude it
                     return false;
                 });
+        
+                // Sort to find the most recent
+                allPriorAssignments.sort((a, b) => {
+                    if (b.effectiveYear !== a.effectiveYear) return b.effectiveYear - a.effectiveYear;
+                    return b.effectiveMonth - a.effectiveMonth;
+                });
+        
+                // Only keep assignments from the most recent effective date
+                if (allPriorAssignments.length > 0) {
+                    const mostRecent = allPriorAssignments[0];
+                    applicable = allPriorAssignments.filter(emp => 
+                        emp.effectiveYear === mostRecent.effectiveYear &&
+                        emp.effectiveMonth === mostRecent.effectiveMonth
+                    );
+                } else {
+                    applicable = [];
+                }
             }
     
             console.log(`🔍 Looking for ${employeeCode} in ${month}/${year} (exact: ${exactMatch}):`, applicable);
-    
-            if (applicable.length === 0) return [];
-    
-            applicable.sort((a, b) => {
-                if (b.effectiveYear !== a.effectiveYear) return b.effectiveYear - a.effectiveYear;
-                return b.effectiveMonth - a.effectiveMonth;
-            });
     
             return applicable;
         };
@@ -4318,6 +4328,7 @@ useEffect(() => {
     </script>
 </body>
 </html>
+
 
 
 
