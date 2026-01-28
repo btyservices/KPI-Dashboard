@@ -2448,7 +2448,7 @@ while (currentDate <= endMonth) {
     displayYears.add(year);
     
     // Get assignments for THIS specific month
-    const monthAssignments = getEmployeeAssignments(configData.employees, selectedName, month, year);
+    const monthAssignments = getEmployeeAssignments(configData.employees, selectedName, month, year, true);
     
     if (monthAssignments.length > 0) {
         const monthOffices = monthAssignments.map(a => a.office).filter(o => o);
@@ -4310,6 +4310,7 @@ useEffect(() => {
     </script>
 </body>
 </html>
+
 
 
 
