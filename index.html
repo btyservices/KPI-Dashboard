@@ -426,34 +426,42 @@
     };
 
         const getEmployeeAssignments = (employees, employeeCode, month, year, exactMatch = false) => {
-    let applicable;
+            let applicable;
     
-    if (exactMatch) {
-        // Only get assignments for the EXACT month and year
-        applicable = employees.filter(emp => 
-            emp.employeeCode === employeeCode &&
-            emp.effectiveMonth === month &&
-            emp.effectiveYear === year
-        );
-    } else {
-        // Get all assignments up to and including this month/year
-        applicable = employees.filter(emp => 
-            emp.employeeCode === employeeCode &&
-            (emp.effectiveYear < year || (emp.effectiveYear === year && emp.effectiveMonth <= month))
-        );
-    }
+            if (exactMatch) {
+                // Only get assignments for the EXACT month and year
+                applicable = employees.filter(emp => 
+                    emp.employeeCode === employeeCode &&
+                    emp.effectiveMonth === month &&
+                    emp.effectiveYear === year
+                );
+            } else {
+                // Get all assignments up to and including this month/year
+                applicable = employees.filter(emp => {
+                    if (emp.employeeCode !== employeeCode) return false;
+            
+                    // Assignment is before the target year - include it
+                    if (emp.effectiveYear < year) return true;
+            
+                    // Assignment is in the target year and month is before or equal - include it
+                    if (emp.effectiveYear === year && emp.effectiveMonth <= month) return true;
+            
+                    // Assignment is after the target date - exclude it
+                    return false;
+                });
+            }
     
-    console.log(`🔍 Looking for ${employeeCode} in ${month}/${year} (exact: ${exactMatch}):`, applicable);
+            console.log(`🔍 Looking for ${employeeCode} in ${month}/${year} (exact: ${exactMatch}):`, applicable);
     
-    if (applicable.length === 0) return [];
+            if (applicable.length === 0) return [];
     
-    applicable.sort((a, b) => {
-        if (b.effectiveYear !== a.effectiveYear) return b.effectiveYear - a.effectiveYear;
-        return b.effectiveMonth - a.effectiveMonth;
-    });
+            applicable.sort((a, b) => {
+                if (b.effectiveYear !== a.effectiveYear) return b.effectiveYear - a.effectiveYear;
+                return b.effectiveMonth - a.effectiveMonth;
+            });
     
-    return applicable;
-};
+            return applicable;
+        };
 
         const getGoalForOffice = (goals, department, office, goalType, month, year) => {
             const applicable = goals.filter(goal => 
@@ -4310,6 +4318,7 @@ useEffect(() => {
     </script>
 </body>
 </html>
+
 
 
 
