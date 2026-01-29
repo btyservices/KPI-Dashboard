@@ -3454,15 +3454,9 @@ const BreakdownModal = ({ type, data, onClose }) => {
                                 <div className="flex items-center justify-between">
                                     <div className="flex-1">
                                         <h4 className="text-white font-semibold">{item.office}</h4>
-                                        {item.goal && (
-                                            <p className="text-slate-400 text-sm mt-1">Goal: {item.goal}</p>
-                                        )}
                                     </div>
                                     <div className="text-right">
                                         <p className="text-cyan-400 font-bold text-xl">{item.value}</p>
-                                        {item.percentage && (
-                                            <p className="text-slate-400 text-sm">{item.percentage}% of goal</p>
-                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -3515,8 +3509,8 @@ const handleCardClick = (type) => {
         totalCollection += patientCollectionTotal;
     }
     
-    // Get office-specific collection from API collection sheets
-    performance.offices.forEach(office => {
+    // Get office-specific collection from ALL offices in configData
+    configData.offices.forEach(office => {
         const officeDataCollection = insPmtData.filter(row => {
             const normalized = normalizeEmployeeName(row.name);
             const rowDate = parseDate(row.date);
@@ -3538,15 +3532,11 @@ const handleCardClick = (type) => {
         const officeCollectionAmount = officeDataCollection.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
         
         if (officeCollectionAmount > 0) {
-            const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear());
-            const officeGoalDisplay = officeGoal * performance.numberOfDays;
-            const percentage = officeGoalDisplay > 0 ? (officeCollectionAmount / officeGoalDisplay * 100).toFixed(1) : '0.0';
-            
             items.push({
                 office: office,
                 value: `$${officeCollectionAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                goal: `$${officeGoalDisplay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                percentage: percentage
+                goal: null,
+                percentage: null
             });
             totalCollection += officeCollectionAmount;
         }
@@ -3562,7 +3552,8 @@ else if (type === 'production') {
     const items = [];
     let totalProduction = 0;
     
-    performance.offices.forEach(office => {
+    // Get production from ALL offices in configData
+    configData.offices.forEach(office => {
         const officeDataProduction = productionData.filter(row => {
             const normalized = normalizeEmployeeName(row.name);
             const rowDate = parseDate(row.date);
@@ -3575,15 +3566,11 @@ else if (type === 'production') {
         const officeProductionAmount = officeDataProduction.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
         
         if (officeProductionAmount > 0) {
-            const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Production', new Date().getMonth() + 1, new Date().getFullYear());
-            const officeGoalDisplay = officeGoal * performance.numberOfDays;
-            const percentage = officeGoalDisplay > 0 ? (officeProductionAmount / officeGoalDisplay * 100).toFixed(1) : '0.0';
-            
             items.push({
                 office: office,
                 value: `$${officeProductionAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                goal: `$${officeGoalDisplay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                percentage: percentage
+                goal: null,
+                percentage: null
             });
             totalProduction += officeProductionAmount;
         }
@@ -4328,6 +4315,7 @@ useEffect(() => {
     </script>
 </body>
 </html>
+
 
 
 
