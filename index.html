@@ -3404,42 +3404,44 @@ const BreakdownModal = ({ type, data, onClose }) => {
                             <h3 className="text-white font-semibold mb-3">How Performance is Calculated</h3>
                             <p className="text-slate-300 text-sm mb-4">{data.explanation}</p>
                         </div>
-                        
+        
                         <div className="space-y-3">
                             {data.officeBreakdown.map((office, index) => (
                                 <div key={index} className="bg-slate-700/40 rounded-xl p-4 border border-slate-600">
-                                    <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center justify-between">
                                         <h4 className="text-white font-semibold">{office.name}</h4>
-                                        <span className="text-cyan-400 font-bold text-lg">{office.performance.toFixed(1)}%</span>
-                                    </div>
-                                    <div className="space-y-2 text-sm">
-                                        {office.metrics.map((metric, i) => (
-                                            <div key={i}>
-                                                <div className="flex items-center justify-between text-slate-300">
-                                                    <span>{metric.label}</span>
-                                                    <span className="font-semibold">{metric.value}</span>
+                                        <div className="text-right">
+                                            {office.metrics.map((metric, i) => (
+                                                <div key={i} className="text-cyan-400 font-bold text-lg">
+                                                    {metric.value}
                                                 </div>
-                                                {metric.gap && (
-                                                    <div className={`text-xs mt-1 ${metric.gap.includes('✅') ? 'text-green-400' : 'text-amber-400'}`}>
-                                                        {metric.gap}
-                                                    </div>
-                                                  )}
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             ))}
                         </div>
 
-                        <div className="bg-gradient-to-r from-cyan-900/30 to-blue-900/30 rounded-xl p-4 border border-cyan-500/30 mt-4">
+                        <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-xl p-4 border border-purple-500/30 mt-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-white font-semibold">Total Collection/Production</span>
+                                <span className="text-purple-400 font-bold text-xl">{data.totalActual}</span>
+                            </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-white font-semibold">Overall Average Performance</span>
+                                <span className="text-slate-400 text-sm">Total Goal</span>
+                                <span className="text-slate-400 text-sm font-semibold">{data.totalGoal}</span>
+                            </div>
+                        </div>
+
+                        <div className="bg-gradient-to-r from-cyan-900/30 to-blue-900/30 rounded-xl p-4 border border-cyan-500/30">
+                            <div className="flex items-center justify-between">
+                                <span className="text-white font-semibold">Overall Performance</span>
                                 <span className="text-cyan-400 font-bold text-xl">{data.overall}%</span>
                             </div>
                         </div>
 
                         {data.overallGap && (
-                            <div className={`rounded-xl p-4 border mt-4 ${data.overallGap.includes('✅') ? 'bg-green-900/30 border-green-500/30' : 'bg-amber-900/30 border-amber-500/30'}`}>
+                            <div className={`rounded-xl p-4 border ${data.overallGap.includes('✅') ? 'bg-green-900/30 border-green-500/30' : 'bg-amber-900/30 border-amber-500/30'}`}>
                                 <div className="flex items-center justify-between">
                                     <span className="text-white font-semibold">Gap to Goal</span>
                                     <span className={`font-bold text-xl ${data.overallGap.includes('✅') ? 'text-green-400' : 'text-amber-400'}`}>{data.overallGap}</span>
@@ -3584,235 +3586,205 @@ else if (type === 'production') {
 
 else if (type === 'performance') {
     const officeBreakdown = [];
-    let totalActual = 0;
-    let totalGoal = 0;
     
-    // Track totals for each metric type across all offices
-    let totalCollectionActual = 0, totalCollectionGoal = 0;
-    let totalProductionActual = 0, totalProductionGoal = 0;
-    let totalAppointmentActual = 0, totalAppointmentGoal = 0;
-    let totalCallActual = 0, totalCallGoal = 0;
-    let totalVerificationActual = 0, totalVerificationGoal = 0;
+    // Track totals for goal calculation (only assigned offices)
+    let totalCollectionGoal = 0;
+    let totalProductionGoal = 0;
+    let totalAppointmentGoal = 0;
+    let totalCallGoal = 0;
+    let totalVerificationGoal = 0;
+    
+    // Calculate goals from ASSIGNED offices only
+    if (performance.department === 'AR Department') {
+        performance.offices.forEach(office => {
+            const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
+            totalCollectionGoal += officeGoal;
+        });
+    } else if (performance.department === 'Outbound Department') {
+        // For Outbound: Use the FIXED monthly goals regardless of office count
+        totalProductionGoal = performance.productionGoal; // This is already calculated correctly
+        totalAppointmentGoal = performance.appointmentGoal; // Fixed monthly goal
+        totalCallGoal = performance.callGoal; // Fixed monthly goal
+    } else if (performance.department === 'Verification Department') {
+        performance.offices.forEach(office => {
+            const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Verification', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
+            totalVerificationGoal += officeGoal;
+        });
+    }
+    
+    // Collect actual values from ALL offices (even non-assigned)
+    let totalCollectionActual = 0;
+    let totalProductionActual = 0;
+    
+    if (performance.department === 'AR Department') {
+        // Patient Collection
+        let patientCollectionTotal = 0;
+        const patientCollectionData = data.filter(row => {
+            const normalized = normalizeEmployeeName(row.name);
+            const rowDate = parseDate(row.date);
+            let inRange = normalized === selectedName;
+            if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+            if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+            return inRange && row.task.trim().toLowerCase() === 'total balance collected';
+        });
         
-        // NEW: Calculate Patient Collection first (for AR Department)
-        if (performance.department === 'AR Department') {
-            let patientCollectionTotal = 0;
-            const patientCollectionData = data.filter(row => {
+        patientCollectionData.forEach(row => {
+            patientCollectionTotal += parseNumericValue(row.collectionAmount);
+        });
+        
+        if (patientCollectionTotal > 0) {
+            officeBreakdown.push({
+                name: 'Patient Collection',
+                performance: null,
+                metrics: [{
+                    label: 'Collection',
+                    value: `$${patientCollectionTotal.toFixed(2)}`
+                }]
+            });
+            totalCollectionActual += patientCollectionTotal;
+        }
+        
+        // All offices collection
+        configData.offices.forEach(office => {
+            const officeDataCollection = insPmtData.filter(row => {
                 const normalized = normalizeEmployeeName(row.name);
                 const rowDate = parseDate(row.date);
                 let inRange = normalized === selectedName;
+                
+                if (row.source && row.source.includes('Collection-')) {
+                    const sourceOffice = row.source.replace('Collection-', '');
+                    inRange = inRange && sourceOffice === office;
+                } else {
+                    return false;
+                }
+                
                 if (startDate) inRange = inRange && rowDate >= new Date(startDate);
                 if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-                return inRange && row.task.trim().toLowerCase() === 'total balance collected';
+                return inRange;
             });
             
-            patientCollectionData.forEach(row => {
-                patientCollectionTotal += parseNumericValue(row.collectionAmount);
-            });
+            const officeCollectionAmount = officeDataCollection.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
             
-            // Calculate average goal from all assigned offices
-            let totalOfficeGoals = 0;
-            performance.offices.forEach(office => {
-                const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
-                totalOfficeGoals += officeGoal;
-            });
-            const avgPatientGoal = performance.offices.length > 0 ? totalOfficeGoals / performance.offices.length : 0;
-            const patientPerf = avgPatientGoal > 0 ? (patientCollectionTotal / avgPatientGoal * 100) : 0;
-            
-            totalCollectionActual += patientCollectionTotal;
-            totalCollectionGoal += avgPatientGoal;
-            
-            // Add Patient Collection to breakdown
-            officeBreakdown.push({
-                name: 'Patient Collection',
-                performance: Math.min(100, patientPerf),
-                metrics: [{
-                    label: 'Collection',
-                    value: `$${patientCollectionTotal.toFixed(2)} / $${avgPatientGoal.toFixed(2)} (${patientPerf.toFixed(1)}%)`
-                }]
-            });
-        }
-        
-        // Process each office
-        performance.offices.forEach(office => {
-            const metrics = [];
-            let officePerf = 0;
-            
-            if (performance.department === 'AR Department') {
-                // Get office-specific collection from API collection sheets
-                    const officeDataCollection = insPmtData.filter(row => {
-                        const normalized = normalizeEmployeeName(row.name);
-                        const rowDate = parseDate(row.date);
-                        let inRange = normalized === selectedName;
-
-                    // Check if source indicates this office
-                    if (row.source && row.source.includes('Collection-')) {
-                        const sourceOffice = row.source.replace('Collection-', '');
-                        inRange = inRange && sourceOffice === office;
-                    } else {
-                        return false;
-                    }
-
-                    if (startDate) inRange = inRange && rowDate >= new Date(startDate);
-                    if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-                    return inRange;
+            if (officeCollectionAmount > 0) {
+                officeBreakdown.push({
+                    name: office,
+                    performance: null,
+                    metrics: [{
+                        label: 'Collection',
+                        value: `$${officeCollectionAmount.toFixed(2)}`
+                    }]
                 });
-
-                const officeCollectionAmount = officeDataCollection.reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
-
-                const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Collection', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
-                const collPerf = officeGoal > 0 ? (officeCollectionAmount / officeGoal * 100) : 0;
-
                 totalCollectionActual += officeCollectionAmount;
-                totalCollectionGoal += officeGoal;
-
-                metrics.push({
-                    label: 'Collection',
-                    value: `$${officeCollectionAmount.toFixed(2)} / $${officeGoal.toFixed(2)} (${collPerf.toFixed(1)}%)`
-                });
-
-                officePerf = collPerf;
             }
-            else if (performance.department === 'Outbound Department') {
-                const officeProduction = productionData.filter(row => {
-                    const normalized = normalizeEmployeeName(row.name);
-                    const rowDate = parseDate(row.date);
-                    let inRange = normalized === selectedName && row.office === office;
-                    if (startDate) inRange = inRange && rowDate >= new Date(startDate);
-                    if (endDate) inRange = inRange && rowDate <= new Date(endDate);
-                    return inRange;
-                }).reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
-                
-                const prodGoal = getGoalForOffice(configData.goals, performance.department, office, 'Production', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
-                const prodPerf = prodGoal > 0 ? (officeProduction / prodGoal * 100) : 0;
-                
-                totalProductionActual += officeProduction;
-                totalProductionGoal += prodGoal;
-
-                metrics.push({
-                    label: 'Production',
-                    value: `$${officeProduction.toFixed(2)} / $${prodGoal.toFixed(2)} (${prodPerf.toFixed(1)}%)`
-                });
-                
-                // Appointments - distribute proportionally by office goal
-                const apptGoal = getGoalForOffice(configData.goals, performance.department, office, 'Appointment', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
-                const apptRatio = apptGoal / performance.appointmentGoal;
-                const officeAppointments = performance.totalAppointments * apptRatio;
-                const apptPerf = apptGoal > 0 ? (officeAppointments / apptGoal * 100) : 0;
-
-                totalAppointmentActual += officeAppointments;
-                totalAppointmentGoal += apptGoal;
-
-                metrics.push({
-                    label: 'Appointments',
-                    value: `${Math.round(officeAppointments)} / ${Math.round(apptGoal)} (${apptPerf.toFixed(1)}%)`
-                });
-                
-                // Calls - distribute proportionally by office goal
-                const callGoal = getGoalForOffice(configData.goals, performance.department, office, 'Call', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
-                const callRatio = callGoal / performance.callGoal;
-                const officeCalls = performance.totalCalls * callRatio;
-                const callPerf = callGoal > 0 ? (officeCalls / callGoal * 100) : 0;
-                
-                totalCallActual += officeCalls;
-                totalCallGoal += callGoal;
-
-                metrics.push({
-                    label: 'Calls',
-                    value: `${Math.round(officeCalls)} / ${Math.round(callGoal)} (${callPerf.toFixed(1)}%)`
-                });
-                        
-                officePerf = (prodPerf + apptPerf + callPerf) / 3;
-             }
-            else if (performance.department === 'Verification Department') {
-                const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Verification', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
-                const verificationRatio = officeGoal / performance.verificationGoal;
-                const officeVerifications = performance.verificationCount * verificationRatio;
-                const verPerf = officeGoal > 0 ? (officeVerifications / officeGoal * 100) : 0;
-                
-                totalVerificationActual += officeVerifications;
-                totalVerificationGoal += officeGoal;
-
-                metrics.push({
-                    label: 'Verifications',
-                    value: `${Math.round(officeVerifications)} / ${Math.round(officeGoal)} (${verPerf.toFixed(1)}%)`
-                });
-
-                officePerf = verPerf;
-               }
-            
-            officeBreakdown.push({
-                name: office,
-                performance: Math.min(100, officePerf),
-                metrics: metrics
-            });
         });
-        
-        // Calculate overall performance including Patient Collection for AR Department
-        let overallPerf = performance.overallPerformance;
-        if (performance.department === 'AR Department' && officeBreakdown.length > 0) {
-            const totalPerf = officeBreakdown.reduce((sum, item) => sum + item.performance, 0);
-            overallPerf = Math.round(totalPerf / officeBreakdown.length);
-        }
-        
-        // Calculate comprehensive gap based on department (using AVERAGES, not totals)
-        let gapText = '';
-        if (performance.department === 'AR Department') {
-            const numOffices = officeBreakdown.length;
-            const avgCollectionGoal = totalCollectionGoal / numOffices;
-            const avgCollectionActual = totalCollectionActual / numOffices;
-            const collectionGap = avgCollectionGoal - avgCollectionActual;
-    
-            gapText = avgCollectionActual >= avgCollectionGoal 
-                ? '✅ Goal exceeded!' 
-                : `Need $${collectionGap.toFixed(2)} more in collection`;
-        } else if (performance.department === 'Outbound Department') {
-            const numOffices = performance.offices.length;
-            const avgProductionGoal = totalProductionGoal / numOffices;
-            const avgProductionActual = totalProductionActual / numOffices;
-            const avgAppointmentGoal = totalAppointmentGoal / numOffices;
-            const avgAppointmentActual = totalAppointmentActual / numOffices;
-            const avgCallGoal = totalCallGoal / numOffices;
-            const avgCallActual = totalCallActual / numOffices;
-    
-            const productionGap = avgProductionGoal - avgProductionActual;
-            const appointmentGap = avgAppointmentGoal - avgAppointmentActual;
-            const callGap = avgCallGoal - avgCallActual;
-    
-            const gaps = [];
-            if (productionGap > 0) gaps.push(`$${productionGap.toFixed(2)} production`);
-            if (appointmentGap > 0) gaps.push(`${Math.ceil(appointmentGap)} appointments`);
-            if (callGap > 0) gaps.push(`${Math.ceil(callGap)} calls`);
-    
-            if (gaps.length === 0) {
-                gapText = '✅ All goals exceeded!';
-            } else {
-                gapText = `Need: ${gaps.join(', ')}`;
+    } else if (performance.department === 'Outbound Department') {
+        // All offices production
+        configData.offices.forEach(office => {
+            const officeProduction = productionData.filter(row => {
+                const normalized = normalizeEmployeeName(row.name);
+                const rowDate = parseDate(row.date);
+                let inRange = normalized === selectedName && row.office === office;
+                if (startDate) inRange = inRange && rowDate >= new Date(startDate);
+                if (endDate) inRange = inRange && rowDate <= new Date(endDate);
+                return inRange;
+            }).reduce((sum, row) => sum + parseNumericValue(row.amount), 0);
+            
+            if (officeProduction > 0) {
+                officeBreakdown.push({
+                    name: office,
+                    performance: null,
+                    metrics: [{
+                        label: 'Production',
+                        value: `$${officeProduction.toFixed(2)}`
+                    }]
+                });
+                totalProductionActual += officeProduction;
             }
-        } else if (performance.department === 'Verification Department') {
-            const numOffices = performance.offices.length;
-            const avgVerificationGoal = totalVerificationGoal / numOffices;
-            const avgVerificationActual = totalVerificationActual / numOffices;
-            const verificationGap = avgVerificationGoal - avgVerificationActual;
-    
-            gapText = avgVerificationActual >= avgVerificationGoal
-                ? '✅ Goal exceeded!'
-                : `Need ${Math.ceil(verificationGap)} more verifications`;
-        }
-
-        breakdown = {
-            officeBreakdown: officeBreakdown,
-            overall: overallPerf,
-            overallGap: gapText,
-            explanation: performance.department === 'AR Department'
-                ? performance.offices.length > 1 
-                    ? `Your overall performance is the average of Patient Collection and all ${performance.offices.length} offices you're assigned to. Patient Collection goal is the average of all office goals. Each office's performance is calculated based on your actual results compared to the goals for that office.`
-                    : `Your performance is the average of Patient Collection and ${performance.offices[0]}. Patient Collection uses the office goal as its target.`
-                : performance.offices.length > 1 
-                    ? `Your overall performance is the average of all ${performance.offices.length} offices you're assigned to. Each office's performance is calculated based on your actual results compared to the goals for that office.`
-                    : `Your performance is calculated based on your actual results compared to the goal for ${performance.offices[0]}.`
-        };
+        });
+    } else if (performance.department === 'Verification Department') {
+        // All offices verification
+        configData.offices.forEach(office => {
+            // For verification, we need to distribute proportionally (can't track by office in data)
+            const officeGoal = getGoalForOffice(configData.goals, performance.department, office, 'Verification', new Date().getMonth() + 1, new Date().getFullYear()) * performance.numberOfDays;
+            
+            if (totalVerificationGoal > 0) {
+                const verificationRatio = officeGoal / totalVerificationGoal;
+                const officeVerifications = performance.verificationCount * verificationRatio;
+                
+                if (officeVerifications > 0) {
+                    officeBreakdown.push({
+                        name: office,
+                        performance: null,
+                        metrics: [{
+                            label: 'Verifications',
+                            value: `${Math.round(officeVerifications)}`
+                        }]
+                    });
+                }
+            }
+        });
     }
+    
+    // Calculate overall performance
+    let overallPerf = 0;
+    let gapText = '';
+    
+    if (performance.department === 'AR Department') {
+        overallPerf = totalCollectionGoal > 0 ? (totalCollectionActual / totalCollectionGoal * 100) : 0;
+        const collectionGap = totalCollectionGoal - totalCollectionActual;
+        gapText = totalCollectionActual >= totalCollectionGoal 
+            ? '✅ Goal exceeded!' 
+            : `Need $${collectionGap.toFixed(2)} more in collection`;
+    } else if (performance.department === 'Outbound Department') {
+        const prodPerf = totalProductionGoal > 0 ? (totalProductionActual / totalProductionGoal * 100) : 0;
+        const apptPerf = totalAppointmentGoal > 0 ? (performance.totalAppointments / totalAppointmentGoal * 100) : 0;
+        const callPerf = totalCallGoal > 0 ? (performance.totalCalls / totalCallGoal * 100) : 0;
+        
+        overallPerf = (prodPerf + apptPerf + callPerf) / 3;
+        
+        const productionGap = totalProductionGoal - totalProductionActual;
+        const appointmentGap = totalAppointmentGoal - performance.totalAppointments;
+        const callGap = totalCallGoal - performance.totalCalls;
+        
+        const gaps = [];
+        if (productionGap > 0) gaps.push(`$${productionGap.toFixed(2)} production`);
+        if (appointmentGap > 0) gaps.push(`${Math.ceil(appointmentGap)} appointments`);
+        if (callGap > 0) gaps.push(`${Math.ceil(callGap)} calls`);
+        
+        if (gaps.length === 0) {
+            gapText = '✅ All goals exceeded!';
+        } else {
+            gapText = `Need: ${gaps.join(', ')}`;
+        }
+    } else if (performance.department === 'Verification Department') {
+        overallPerf = totalVerificationGoal > 0 ? (performance.verificationCount / totalVerificationGoal * 100) : 0;
+        const verificationGap = totalVerificationGoal - performance.verificationCount;
+        gapText = performance.verificationCount >= totalVerificationGoal
+            ? '✅ Goal exceeded!'
+            : `Need ${Math.ceil(verificationGap)} more verifications`;
+    }
+    
+    breakdown = {
+        officeBreakdown: officeBreakdown,
+        overall: Math.round(overallPerf),
+        overallGap: gapText,
+        totalActual: performance.department === 'AR Department' 
+            ? `$${totalCollectionActual.toFixed(2)}`
+            : performance.department === 'Outbound Department'
+            ? `$${totalProductionActual.toFixed(2)}`
+            : `${Math.round(performance.verificationCount)}`,
+        totalGoal: performance.department === 'AR Department'
+            ? `$${totalCollectionGoal.toFixed(2)}`
+            : performance.department === 'Outbound Department'
+            ? `Production: $${totalProductionGoal.toFixed(2)}, Appointments: ${Math.round(totalAppointmentGoal)}, Calls: ${Math.round(totalCallGoal)}`
+            : `${Math.round(totalVerificationGoal)}`,
+        explanation: performance.department === 'AR Department'
+            ? `Your performance is calculated as: Total Collection from ALL offices (${officeBreakdown.length} offices) / Total Goals from ASSIGNED offices (${performance.offices.length} offices: ${performance.offices.join(', ')}).`
+            : performance.department === 'Outbound Department'
+            ? `Your performance is calculated as: Total Production from ALL offices / Goals from ASSIGNED offices (${performance.offices.join(', ')}). Appointments (${Math.round(totalAppointmentGoal)}) and Calls (${Math.round(totalCallGoal)}) are fixed monthly goals regardless of office assignments.`
+            : `Your performance is calculated as: Total Verifications / Total Goals from ASSIGNED offices (${performance.offices.join(', ')}).`
+    };
+}
     
     setBreakdownType(type);
     setBreakdownData(breakdown);
@@ -4315,6 +4287,7 @@ useEffect(() => {
     </script>
 </body>
 </html>
+
 
 
 
