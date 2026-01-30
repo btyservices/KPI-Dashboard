@@ -3774,9 +3774,9 @@ else if (type === 'performance') {
             ? `$${totalProductionActual.toFixed(2)}`
             : `${Math.round(performance.verificationCount)}`,
         totalGoal: performance.department === 'AR Department'
-            ? `$${totalCollectionGoal.toFixed(2)}`
+            ? `$${totalCollectionGoal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             : performance.department === 'Outbound Department'
-            ? `Production: $${totalProductionGoal.toFixed(2)}, Appointments: ${Math.round(totalAppointmentGoal)}, Calls: ${Math.round(totalCallGoal)}`
+            ? `Production: $${totalProductionGoal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}, Appointments: ${Math.round(totalAppointmentGoal)}, Calls: ${Math.round(totalCallGoal)}`
             : `${Math.round(totalVerificationGoal)}`,
         explanation: performance.department === 'AR Department'
             ? `Your performance is calculated as: Total Collection from ALL offices (${officeBreakdown.length} offices) / Total Goals from ASSIGNED offices (${performance.offices.length} offices: ${performance.offices.join(', ')}).`
@@ -3973,11 +3973,8 @@ useEffect(() => {
                                                 {performance.department === 'AR Department' && performance.collectionGoal ? `$${parseFloat(performance.collectionGoal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : performance.department === 'Outbound Department' && performance.productionGoal ? `$${parseFloat(performance.productionGoal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : Math.round(performance.verificationGoal || 0)}
                                             </p>
                                             <p className="text-purple-300 text-sm font-medium">
-                                                {performance.offices.length > 1 ? `across ${performance.offices.length} offices` : '1 office'} • {performance.numberOfDays} {performance.numberOfDays === 1 ? 'day' : 'days'}
-                                            </p>
-                                            {performance.offices.length > 1 && (
-                                                <p className="text-purple-400 text-xs mt-1">(weighted by office goals)</p>
-                                            )}
+                                            {performance.numberOfDays} {performance.numberOfDays === 1 ? 'day' : 'days'}
+                                                </p>
                                         </div>
                                     </div>
 
@@ -4287,6 +4284,7 @@ useEffect(() => {
     </script>
 </body>
 </html>
+
 
 
 
